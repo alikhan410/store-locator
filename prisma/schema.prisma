@@ -8,14 +8,14 @@ generator client {
 // Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
 // enough when changing adapters.
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
-datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
-}
 // datasource db {
-//   provider = "postgresql"
-//   url      = "postgres://56477cb2f2138d23856cdbbfe4546182b00c107f94a61e994e2974cc3a419f13:sk_qY9sJeHhzVJbRtrTUDQdC@db.prisma.io:5432/?sslmode=require"
+//   provider = "sqlite"
+//   url      = "file:dev.sqlite"
 // }
+datasource db {
+  provider = "postgresql"
+  url      = env("PRISMA_POSTGRES_DATABASE_URL")
+}
 
 model Session {
   id            String    @id
