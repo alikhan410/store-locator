@@ -1,12 +1,9 @@
 import { PassThrough } from "stream";
 import { renderToPipeableStream } from "react-dom/server";
 import { RemixServer } from "@remix-run/react";
-import vercelRemix from "@vercel/remix";
-import { addDocumentResponseHeaders } from "./shopify.server";
 import { isbot } from "isbot";
-
-// Destructure from the CommonJS default import
-const { createReadableStreamFromReadable } = vercelRemix;
+import { addDocumentResponseHeaders } from "./shopify.server";
+import { createReadableStreamFromReadable } from "@remix-run/node";
 
 export const streamTimeout = 5000;
 
@@ -17,6 +14,7 @@ export default async function handleRequest(
   remixContext,
 ) {
   addDocumentResponseHeaders(request, responseHeaders);
+
   const userAgent = request.headers.get("user-agent");
   const callbackName = isbot(userAgent ?? "") ? "onAllReady" : "onShellReady";
 
