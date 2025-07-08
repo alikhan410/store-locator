@@ -1,4 +1,3 @@
-import { data } from "@remix-run/node";
 import prisma from "../db.server";
 
 export const loader = async ({ request }) => {
@@ -18,7 +17,6 @@ export const loader = async ({ request }) => {
         ],
       },
     });
-    console.log("data is: ", stores);
 
     return { stores };
   } catch (error) {

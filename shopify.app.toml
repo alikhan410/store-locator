@@ -3,7 +3,7 @@
 client_id = "652c69b590f3c0e854729f8bf32ddac2"
 name = "store-locator"
 handle = "store-locator-175"
-application_url = "https://implications-shall-distributed-poem.trycloudflare.com"
+application_url = "https://say-weekend-royalty-istanbul.trycloudflare.com"
 embedded = true
 
 [build]
@@ -26,7 +26,7 @@ api_version = "2025-07"
 scopes = "write_products,write_app_proxy"
 
 [auth]
-redirect_urls = ["https://implications-shall-distributed-poem.trycloudflare.com/auth/callback", "https://implications-shall-distributed-poem.trycloudflare.com/auth/shopify/callback", "https://implications-shall-distributed-poem.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://say-weekend-royalty-istanbul.trycloudflare.com/auth/callback", "https://say-weekend-royalty-istanbul.trycloudflare.com/auth/shopify/callback", "https://say-weekend-royalty-istanbul.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
