@@ -1,4 +1,5 @@
-input, select {
+input,
+select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -12,11 +13,10 @@ input, select {
   justify-content: center;
 }
 
-.input-container{
+.input-container {
   position: relative;
   display: flex;
   flex: 1;
-
 }
 .store-locator-form input {
   padding: 0.5rem 0.75rem;
@@ -35,13 +35,3 @@ input, select {
   flex: 1;
   min-width: 200px;
 }
-
-/* .store-locator-form input,
-.store-locator-form select {
-  padding: 0.5rem;
-  font-size: 1.2rem;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-} */
-
-
