@@ -1,0 +1,192 @@
+{
+  "stores": [
+    {
+      "name": "New York Store",
+      "address": "123 Broadway, New York, NY",
+      "lat": 40.7128,
+      "lng": -74.0060
+    },
+    {
+      "name": "Guffey Store",
+      "address": "123 Mountain Rd, Guffey, CO",
+      "lat": 38.7260,
+      "lng": -105.6080
+    },
+    {
+      "name": "Canon City Store",
+      "address": "123 Main St, Canon City, CO",
+      "lat": 38.4494,
+      "lng": -105.2253
+    },
+    {
+      "name": "CONCORD PET FOODS #1 WILMINGTON",
+      "address": "2800 Concord Pike, Wilmington, DE 19803",
+      "lat": 39.7939,
+      "lng": -75.5440
+    },
+    {
+      "name": "CONCORD PET FOODS #2 RED MILL",
+      "address": "1450 Kirkwood Highway, Newark, DE 19711",
+      "lat": 39.69799,
+      "lng": -75.70756
+      
+    },
+    {
+      "name": "CONCORD PET FOODS #4 HOCKESSIN",
+      "address": "697 Yorklyn Road, Hockessin, DE 19707",
+      "lat": 39.7901,
+      "lng": -75.6936
+    },
+    {
+      "name": "CONCORD PET FOODS #6 GRAYLYN",
+      "address": "1722 Marsh Road, Wilmington, DE 19810",
+      "lat": 39.79164,
+      "lng": -75.52188
+    },
+    {
+      "name": "CONCORD PET FOODS #7 CHESTNUT",
+      "address": "1720 Faulkland Road, Wilmington, DE 19805",
+      "lat": 39.7311,
+      "lng": -75.6152
+    },
+    {
+      "name": "CONCORD PET FOODS #8 MIDDLETOWN",
+      "address": "340 East Main Street, Middletown, DE 19709",
+      "lat": 39.4494,
+      "lng": -75.7165
+    },
+    {
+      "name": "CONCORD PET FOODS #9 COMMUNITY",
+      "address": "287 Christiana Road #2, New Castle, DE 19720",
+      "lat": 39.6619,
+      "lng": -75.6388
+    },
+    {
+      "name": "CONCORD PET FOODS #10 ASTON",
+      "address": "4940 Pennell Road, Aston, PA 19014",
+      "lat": 39.8514,
+      "lng": -75.4411
+    },
+    {
+      "name": "HOMETOWNE PET & SUPPLY",
+      "address": "153 Route 94, Warwick, NY 10990",
+      "lat": 41.2624,
+      "lng": -74.3603
+    },
+    {
+      "name": "CONCORD PET FOODS #11 DOVER",
+      "address": "17 S. Dupont Highway, Dover, DE 19904",
+      "lat": 39.1560,
+      "lng": -75.5233
+    },
+    {
+      "name": "CONCORD PET FOODS #12 W CHESTER",
+      "address": "804 E. Market Street, West Chester, PA 19382",
+      "lat": 39.9586,
+      "lng": -75.5913
+    },
+    {
+      "name": "CONCORD PET FOODS #13 REHOBOTH",
+      "address": "19287 Miller Road, Rehoboth Beach, DE 19971",
+      "lat": 38.7209,
+      "lng": -75.1185
+    },
+    {
+      "name": "San Francisco Store",
+      "address": "456 Market St, San Francisco, CA",
+      "lat": 37.7749,
+      "lng": -122.4194
+    },
+    {
+      "name": "Chicago Store",
+      "address": "789 Michigan Ave, Chicago, IL",
+      "lat": 41.8781,
+      "lng": -87.6298
+    },
+    {
+      "name": "Brooklyn Store",
+      "address": "10 Clark St, Brooklyn, NY",
+      "lat": 40.6959,
+      "lng": -73.9956
+    },
+    {
+      "name": "Queens Store",
+      "address": "31-21 31st St, Astoria, NY",
+      "lat": 40.7644,
+      "lng": -73.9235
+    },
+    {
+      "name": "Jamaica Store",
+      "address": "161-10 Jamaica Ave, Queens, NY",
+      "lat": 40.7027,
+      "lng": -73.7890
+    },
+    {
+      "name": "White Plains Store",
+      "address": "200 Main St, White Plains, NY",
+      "lat": 41.0330,
+      "lng": -73.7629
+    },
+    {
+    "name": "Colorado Store 1",
+    "address": "101 Main St, Colorado Springs, CO",
+    "lat": 38.8339,
+    "lng": -104.8214
+  },
+  {
+    "name": "California Store 1",
+    "address": "101 Sunset Blvd, Los Angeles, CA",
+    "lat": 34.0522,
+    "lng": -118.2437
+  },
+  {
+    "name": "Texas Store 1",
+    "address": "101 Congress Ave, Austin, TX",
+    "lat": 30.2672,
+    "lng": -97.7431
+  },
+  {
+    "name": "Florida Store 1",
+    "address": "101 Biscayne Blvd, Miami, FL",
+    "lat": 25.7617,
+    "lng": -80.1918
+  },
+  {
+    "name": "New York Store 1",
+    "address": "123 Broadway, New York, NY",
+    "lat": 40.7128,
+    "lng": -74.0060
+  },
+  {
+    "name": "Illinois Store 1",
+    "address": "101 Michigan Ave, Chicago, IL",
+    "lat": 41.8781,
+    "lng": -87.6298
+  },
+  {
+    "name": "Washington Store 1",
+    "address": "101 Pine St, Seattle, WA",
+    "lat": 47.6062,
+    "lng": -122.3321
+  },
+  {
+    "name": "Georgia Store 1",
+    "address": "101 Peachtree St, Atlanta, GA",
+    "lat": 33.7490,
+    "lng": -84.3880
+  },
+  {
+    "name": "Nevada Store 1",
+    "address": "101 Fremont St, Las Vegas, NV",
+    "lat": 36.1699,
+    "lng": -115.1398
+  },
+  {
+    "name": "Arizona Store 1",
+    "address": "101 Central Ave, Phoenix, AZ",
+    "lat": 33.4484,
+    "lng": -112.0740
+  }
+  ]
+}
+

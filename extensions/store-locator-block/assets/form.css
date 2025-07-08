@@ -1,0 +1,47 @@
+input, select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.store-locator-form {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.input-container{
+  position: relative;
+  display: flex;
+  flex: 1;
+
+}
+.store-locator-form input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1.2rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.store-locator-form select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1.2rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+/* .store-locator-form input,
+.store-locator-form select {
+  padding: 0.5rem;
+  font-size: 1.2rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+} */
+
+
