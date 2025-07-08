@@ -201,7 +201,7 @@ export default function StoresPage() {
     },
   ];
 
-  // 🔁 This would trigger a fetch
+  //would trigger a fetch
   const fetchFilteredStores = useCallback(() => {
     const params = new URLSearchParams();
 
@@ -217,7 +217,7 @@ export default function StoresPage() {
       .then((data) => {
         console.log("Filtered stores:", data);
         setFilteredStores(data.stores);
-        setCurrentPage(1); // ✅ Reset to page 1
+        setCurrentPage(1);
       })
       .catch((err) => console.error("Failed to fetch stores:", err));
   }, [queryValue, stateFilter, cityFilter, hasCoordinates, hasPhone, hasLink]);
