@@ -1,7 +1,9 @@
-import { redirect } from "@vercel/remix";
+import vercelRemix from "@vercel/remix";
 import { Form, useLoaderData } from "@remix-run/react";
 import { login } from "../../shopify.server";
 import styles from "./styles.module.css";
+
+const { redirect } = vercelRemix;
 
 export const loader = async ({ request }) => {
   const url = new URL(request.url);
