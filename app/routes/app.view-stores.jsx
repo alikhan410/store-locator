@@ -25,7 +25,7 @@ export const loader = async () => {
   const prisma = (await import("../db.server")).default;
   const stores = await prisma.store.findMany();
 
-  return Response.json({ stores });
+  return { stores };
 };
 
 export default function StoresPage() {
