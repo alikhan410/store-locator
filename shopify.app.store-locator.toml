@@ -1,0 +1,24 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "fc0568978e5a7a64c4020dc35c935330"
+name = "store-locator"
+handle = "store-locator-176"
+application_url = "https://danish-meaningful-tennis-mileage.trycloudflare.com"
+embedded = true
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true
+
+[webhooks]
+api_version = "2025-07"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "write_app_proxy,write_products"
+
+[auth]
+redirect_urls = ["https://danish-meaningful-tennis-mileage.trycloudflare.com/auth/callback", "https://danish-meaningful-tennis-mileage.trycloudflare.com/auth/shopify/callback", "https://danish-meaningful-tennis-mileage.trycloudflare.com/api/auth/callback"]
+
+[pos]
+embedded = false
