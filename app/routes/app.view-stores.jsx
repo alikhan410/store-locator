@@ -279,12 +279,9 @@ export default function StoresPage() {
         )}
       </IndexTable.Cell>
       <IndexTable.Cell>
-        <Button
-          size="micro"
-          onClick={() => navigate(`/app/edit-store/${store.id}`)}
-        >
+        <Link dataPrimaryLink url={`/app/edit-store/${store.id}`}>
           Edit
-        </Button>
+        </Link>
       </IndexTable.Cell>
     </IndexTable.Row>
   ));
