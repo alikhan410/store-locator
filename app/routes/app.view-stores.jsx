@@ -278,6 +278,14 @@ export default function StoresPage() {
           "N/A"
         )}
       </IndexTable.Cell>
+      <IndexTable.Cell>
+        <Button
+          size="micro"
+          onClick={() => navigate(`/app/edit-store/${store.id}`)}
+        >
+          Edit
+        </Button>
+      </IndexTable.Cell>
     </IndexTable.Row>
   ));
   if (!isMounted) {
@@ -341,6 +349,7 @@ export default function StoresPage() {
             { title: "Longitude" },
             { title: "Phone" },
             { title: "Link" },
+            { title: "Actions" },
           ]}
           selectable
         >

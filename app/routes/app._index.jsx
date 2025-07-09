@@ -23,13 +23,13 @@ import {
   useAppBridge 
 } from "@shopify/app-bridge-react";
 import { 
-  AlertMinor, 
-  LocationMajor, 
-  PhoneMajor,
-  ExportMinor,
-  ImportMinor,
-  PlusMinor,
-  ViewMinor
+  AlertCircleIcon, 
+  LocationIcon, 
+  PhoneIcon,
+  ExportIcon,
+  ImportIcon,
+  PlusIcon,
+  ListBulletedIcon
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 
@@ -148,7 +148,7 @@ export default function Index() {
                     <BlockStack gap="200">
                       <InlineStack align="space-between">
                         <Text variant="headingMd" as="h2">Total Stores</Text>
-                        <Icon source={LocationMajor} color="base" />
+                        <Icon source={LocationIcon} color="base" />
                       </InlineStack>
                       <Text variant="heading2xl" as="p" color="success">
                         {metrics.totalStores}
@@ -207,25 +207,25 @@ export default function Index() {
                 <InlineStack gap="200">
                   <Button 
                     primary 
-                    icon={PlusMinor}
+                    icon={PlusIcon}
                     onClick={() => navigate("/app/add-store")}
                   >
                     Add New Store
                   </Button>
                   <Button 
-                    icon={ViewMinor}
+                    icon={ListBulletedIcon}
                     onClick={() => navigate("/app/view-stores")}
                   >
                     Manage Stores
                   </Button>
                   <Button 
-                    icon={ImportMinor}
+                    icon={ImportIcon}
                     onClick={() => navigate("/app/view-stores")}
                   >
                     Import CSV
                   </Button>
                   <Button 
-                    icon={ExportMinor}
+                    icon={ExportIcon}
                     onClick={handleExportStores}
                   >
                     Export Data
@@ -244,7 +244,7 @@ export default function Index() {
                       <List.Item>
                         <InlineStack gap="200" align="space-between">
                           <InlineStack gap="200">
-                            <Icon source={AlertMinor} color="warning" />
+                            <Icon source={AlertCircleIcon} color="warning" />
                             <Text>
                               {metrics.missingCoordinates} stores need geocoding
                             </Text>
@@ -259,7 +259,7 @@ export default function Index() {
                       <List.Item>
                         <InlineStack gap="200" align="space-between">
                           <InlineStack gap="200">
-                            <Icon source={PhoneMajor} color="base" />
+                            <Icon source={PhoneIcon} color="base" />
                             <Text>
                               {metrics.missingPhone} stores missing phone numbers
                             </Text>

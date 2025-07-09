@@ -146,7 +146,7 @@ export default function AddStore() {
                   />
                   <TextField
                     name="link"
-                    label="Store Link"
+                    label="Store URL"
                     value={formData.link}
                     onChange={handleChange("link")}
                   />
