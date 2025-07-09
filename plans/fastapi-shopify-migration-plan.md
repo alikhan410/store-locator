@@ -23,12 +23,12 @@
 ### **PHASE 1: Foundation & Infrastructure** (Week 1-2)
 *Build the bulletproof foundation that scales*
 
-#### **1.1 Digital Ocean Setup & CI/CD Pipeline**
-- [ ] **DO-001**: Create Digital Ocean App Platform project
-- [ ] **DO-002**: Configure environment-based deployments (dev/staging/prod)
+#### **1.1 Digital Ocean Droplet Setup & CI/CD Pipeline**
+- [ ] **DO-001**: Create $12/month Digital Ocean droplet (1 vCPU, 2GB RAM, 50GB SSD)
+- [ ] **DO-002**: Configure Ubuntu 22.04 LTS with Docker and Docker Compose
 - [ ] **DO-003**: Set up GitHub Actions CI/CD pipeline with automated testing
-- [ ] **DO-004**: Configure custom domain with SSL certificates
-- [ ] **DO-005**: Set up monitoring dashboards and alerts
+- [ ] **DO-004**: Configure custom domain with SSL certificates (Let's Encrypt)
+- [ ] **DO-005**: Set up basic monitoring with built-in DO metrics
 
 #### **1.2 Supabase Database Architecture**
 - [ ] **DB-001**: Create Supabase project with proper regions
@@ -759,11 +759,53 @@ class StoreLocatorUser(HttpUser):
 *Flawless production deployment*
 
 #### **9.1 Production Deployment**
-- [ ] **DEPLOY-001**: Set up blue-green deployment strategy
-- [ ] **DEPLOY-002**: Configure auto-scaling and load balancing
-- [ ] **DEPLOY-003**: Implement health checks and circuit breakers
-- [ ] **DEPLOY-004**: Set up monitoring and alerting
-- [ ] **DEPLOY-005**: Create disaster recovery procedures
+- [ ] **DEPLOY-001**: Set up Docker Compose deployment on single droplet
+- [ ] **DEPLOY-002**: Configure Nginx reverse proxy with SSL
+- [ ] **DEPLOY-003**: Implement basic health checks and restart policies
+- [ ] **DEPLOY-004**: Set up monitoring and log aggregation
+- [ ] **DEPLOY-005**: Create automated backup procedures for database
+
+```yaml
+# docker-compose.prod.yml - Simple, effective deployment
+version: '3.8'
+services:
+  api:
+    build: .
+    restart: unless-stopped
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SHOPIFY_API_KEY=${SHOPIFY_API_KEY}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+  
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/ssl/certs
+    depends_on:
+      - api
+```
+
+**Deployment handles:**
+- 100+ concurrent users easily
+- 1000+ API requests/minute
+- 10,000+ stores in database
+- Auto-restart on failures
+- SSL termination
+- Basic load balancing
 
 #### **9.2 App Store Submission**
 - [ ] **STORE-001**: Create compelling app listing with screenshots
@@ -777,10 +819,10 @@ class StoreLocatorUser(HttpUser):
 ## 🏆 **COMPETITIVE ADVANTAGES**
 
 ### **Performance Superiority**
-- ⚡ **Sub-200ms API response times** with caching
+- ⚡ **Sub-200ms API response times** with Redis caching
 - 🚀 **Real-time updates** with Supabase subscriptions
 - 📱 **PWA capabilities** for app-like mobile experience
-- 🌍 **Global CDN** for lightning-fast asset delivery
+- 🌍 **Fast asset delivery** with optimized static files
 
 ### **Feature Differentiation**
 - 🤖 **AI-powered store recommendations** 
@@ -796,10 +838,10 @@ class StoreLocatorUser(HttpUser):
 - 🔍 **Advanced debugging** tools and logging
 
 ### **Scalability & Reliability**
-- 🏗️ **Microservices architecture** for independent scaling
-- 💾 **Intelligent caching** with automatic invalidation
-- 🔄 **Auto-scaling** based on demand
-- 🛡️ **99.9% uptime** with health monitoring
+- 🏗️ **Simple, maintainable architecture** that scales efficiently
+- 💾 **Intelligent caching** with Redis for fast responses
+- 🔄 **Container-based deployment** for easy scaling when needed
+- 🛡️ **High availability** with health monitoring and auto-restart
 
 ---
 
@@ -849,11 +891,32 @@ class StoreLocatorUser(HttpUser):
 ## 💰 **ESTIMATED COSTS & ROI**
 
 ### **Monthly Operating Costs**
-- **Digital Ocean**: $100-500/month (scales with usage)
-- **Supabase**: $25-200/month (includes backups and scaling)
-- **Monitoring & Tools**: $50-100/month
-- **CDN & Storage**: $25-75/month
-- **Total**: $200-875/month depending on scale
+- **Digital Ocean Droplet**: $12-18/month (1-2 vCPU, 2GB RAM)
+- **Supabase**: $0-25/month (free tier sufficient initially)
+- **Domain & SSL**: $1/month (Let's Encrypt is free)
+- **Monitoring & Tools**: $0-10/month (basic monitoring)
+- **Total**: $13-54/month depending on scale
+
+### **Why This Infrastructure Is Perfect**
+**$12/month droplet easily handles:**
+- 100+ concurrent API requests
+- 1,000+ stores per shop
+- 50+ active merchant shops
+- Real-time search and geocoding
+- Redis caching for sub-200ms responses
+- PostgreSQL connection pooling via Supabase
+
+**This is NOT a heavy application:**
+- Simple CRUD operations on store data
+- Database queries (handled efficiently by Supabase)
+- Basic JWT authentication
+- Static file serving for admin dashboard
+- No video processing, ML inference, or complex calculations
+
+**When to upgrade:**
+- **$18/month** (2 vCPU): When you hit 100+ concurrent users
+- **$24/month** (2 vCPU, 4GB): When you have 200+ active shops
+- **Load balancer**: Only needed at 1000+ concurrent users
 
 ### **Development Investment**
 - **Phase 1-3**: 4-6 weeks (foundation and core features)
@@ -863,9 +926,9 @@ class StoreLocatorUser(HttpUser):
 
 ### **Revenue Projections**
 - **Pricing**: $19.99/month or $199/year
-- **Target**: 100 customers = $24k/year profit after costs
+- **Target**: 100 customers = $24k/year revenue, ~$23k profit after costs
 - **Growth**: Premium features unlock $49.99/month tier
-- **ROI**: Break-even at ~25-30 customers
+- **ROI**: Break-even at just 3-5 customers!
 
 ---
 

@@ -3,7 +3,7 @@
 client_id = "fc0568978e5a7a64c4020dc35c935330"
 name = "store-locator"
 handle = "store-locator-176"
-application_url = "https://danish-meaningful-tennis-mileage.trycloudflare.com"
+application_url = "https://cant-advertiser-medline-molecular.trycloudflare.com"
 embedded = true
 
 [build]
@@ -18,7 +18,7 @@ api_version = "2025-07"
 scopes = "write_app_proxy,write_products"
 
 [auth]
-redirect_urls = ["https://danish-meaningful-tennis-mileage.trycloudflare.com/auth/callback", "https://danish-meaningful-tennis-mileage.trycloudflare.com/auth/shopify/callback", "https://danish-meaningful-tennis-mileage.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://cant-advertiser-medline-molecular.trycloudflare.com/auth/callback", "https://cant-advertiser-medline-molecular.trycloudflare.com/auth/shopify/callback", "https://cant-advertiser-medline-molecular.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
