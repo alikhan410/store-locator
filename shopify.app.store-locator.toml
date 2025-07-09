@@ -3,12 +3,12 @@
 client_id = "fc0568978e5a7a64c4020dc35c935330"
 name = "store-locator"
 handle = "store-locator-176"
-application_url = "https://trunk-question-where-tracy.trycloudflare.com"
+application_url = "https://bikes-groups-homeless-control.trycloudflare.com"
 embedded = true
 
 [build]
-include_config_on_deploy = true
 automatically_update_urls_on_dev = true
+include_config_on_deploy = true
 
 [webhooks]
 api_version = "2025-07"
@@ -18,7 +18,7 @@ api_version = "2025-07"
 scopes = "write_app_proxy,write_products"
 
 [auth]
-redirect_urls = ["https://trunk-question-where-tracy.trycloudflare.com/auth/callback", "https://trunk-question-where-tracy.trycloudflare.com/auth/shopify/callback", "https://trunk-question-where-tracy.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://bikes-groups-homeless-control.trycloudflare.com/auth/callback", "https://bikes-groups-homeless-control.trycloudflare.com/auth/shopify/callback", "https://bikes-groups-homeless-control.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false

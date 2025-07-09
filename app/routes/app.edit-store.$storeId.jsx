@@ -20,6 +20,7 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { Form, useActionData, useLoaderData, useNavigate } from "@remix-run/react";
 import { stateOptions } from "../helper/options";
 import { generateCoords } from "../helper/fetchCoords";
+import { loadGoogleMapsScript, cleanupGoogleMapsInstances, isClient } from "../helper/googleMapsLoader";
 
 // Add Google Maps script to head
 export const links = () => [
@@ -28,24 +29,6 @@ export const links = () => [
     href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap",
   },
 ];
-
-// Load Google Maps script
-const loadGoogleMapsScript = () => {
-  return new Promise((resolve, reject) => {
-    if (window.google && window.google.maps) {
-      resolve(window.google);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.GOOGLE_GEOCODING_API_KEY}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve(window.google);
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-};
 
 const formatPhone = (value) => {
   const phone = parsePhoneNumberFromString(value, "US");
@@ -64,7 +47,10 @@ export const loader = async ({ params }) => {
     throw new Response("Store not found", { status: 404 });
   }
 
-  return { store };
+  return {
+    store,
+    googleMapsApiKey: process.env.GOOGLE_MAPS_PUBLIC_KEY, // Expose only the public key
+  };
 };
 
 export const action = async ({ request, params }) => {
@@ -112,13 +98,26 @@ export const action = async ({ request, params }) => {
 
 export default function EditStore() {
   const action = useActionData();
-  const { store } = useLoaderData();
+  const { store, googleMapsApiKey } = useLoaderData();
   const shopify = useAppBridge();
   const navigate = useNavigate();
+  
+  // Refs for DOM elements and Google Maps instances
   const mapRef = useRef(null);
   const autocompleteRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
+  const autocompleteInstanceRef = useRef(null);
+  
+  // State for client-side rendering and loading
+  const [isClientState, setIsClientState] = useState(false);
+  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [isAutocompleteLoaded, setIsAutocompleteLoaded] = useState(false);
+
+  // Ensure we're on the client
+  useEffect(() => {
+    setIsClientState(true);
+  }, []);
 
   useEffect(() => {
     if (action?.success) {
@@ -142,8 +141,6 @@ export default function EditStore() {
     phone: store.phone || "",
     hours: "",
   });
-  const [isMapLoaded, setIsMapLoaded] = useState(false);
-  const [isAutocompleteLoaded, setIsAutocompleteLoaded] = useState(false);
 
   const handleChange = useCallback(
     (field) => (value) => {
@@ -152,76 +149,111 @@ export default function EditStore() {
     [],
   );
 
-  // Initialize Google Maps
+  // Initialize Google Maps - only on client and when mapRef is available
   useEffect(() => {
-    const initMap = async () => {
+    if (!isClientState || !mapRef.current || !googleMapsApiKey) return;
+
+    let isMounted = true;
+    let map = null;
+    let marker = null;
+
+    const initializeMap = async () => {
       try {
-        const google = await loadGoogleMapsScript();
+        const google = await loadGoogleMapsScript(googleMapsApiKey);
         
+        if (!isMounted || !mapRef.current) return;
+
         // Initialize map
-        const map = new google.maps.Map(mapRef.current, {
-          center: { 
-            lat: parseFloat(formData.lat) || 39.8283, 
-            lng: parseFloat(formData.lng) || -98.5795 
+        map = new google.maps.Map(mapRef.current, {
+          center: {
+            lat: parseFloat(formData.lat) || 39.8283,
+            lng: parseFloat(formData.lng) || -98.5795,
           },
           zoom: 15,
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
         });
-        
+
         mapInstanceRef.current = map;
-        
+
         // Add marker if coordinates exist
         if (formData.lat && formData.lng) {
-          const marker = new google.maps.Marker({
-            position: { lat: parseFloat(formData.lat), lng: parseFloat(formData.lng) },
+          marker = new google.maps.Marker({
+            position: { 
+              lat: parseFloat(formData.lat), 
+              lng: parseFloat(formData.lng) 
+            },
             map: map,
             title: formData.name || "Store Location",
           });
           markerRef.current = marker;
         }
-        
+
         setIsMapLoaded(true);
       } catch (error) {
-        console.error("Failed to load Google Maps:", error);
+        console.error('Failed to initialize Google Maps:', error);
+        if (isMounted) {
+          setIsMapLoaded(true); // Set to true to hide loading spinner
+        }
       }
     };
 
-    initMap();
-  }, []);
+    initializeMap();
 
-  // Setup autocomplete
-  useEffect(() => {
-    const setupAutocomplete = async () => {
-      if (!autocompleteRef.current || !window.google) return;
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      cleanupGoogleMapsInstances(
+        mapInstanceRef.current,
+        markerRef.current,
+        autocompleteInstanceRef.current
+      );
       
+      // Clear refs
+      mapInstanceRef.current = null;
+      markerRef.current = null;
+      autocompleteInstanceRef.current = null;
+    };
+  }, [isClientState, googleMapsApiKey, formData.lat, formData.lng, formData.name]);
+
+  // Setup autocomplete - only on client and when autocompleteRef is available
+  useEffect(() => {
+    if (!isClientState || !autocompleteRef.current || !googleMapsApiKey) return;
+
+    let isMounted = true;
+    let autocomplete = null;
+
+    const setupAutocomplete = async () => {
       try {
-        const google = await loadGoogleMapsScript();
+        const google = await loadGoogleMapsScript(googleMapsApiKey);
         
-        const autocomplete = new google.maps.places.Autocomplete(autocompleteRef.current, {
+        if (!isMounted || !autocompleteRef.current) return;
+
+        autocomplete = new google.maps.places.Autocomplete(autocompleteRef.current, {
           types: ['address'],
           componentRestrictions: { country: 'us' },
         });
 
+        autocompleteInstanceRef.current = autocomplete;
+
         autocomplete.addListener('place_changed', () => {
-          const place = autocomplete.getPlace();
+          if (!isMounted) return;
           
+          const place = autocomplete.getPlace();
           if (place.geometry) {
             const lat = place.geometry.location.lat();
             const lng = place.geometry.location.lng();
             
-            // Parse address components
             let streetNumber = '';
             let route = '';
+            let address2 = '';
             let city = '';
             let state = '';
             let zip = '';
-            let address2 = '';
             
             place.address_components.forEach(component => {
               const types = component.types;
-              
               if (types.includes('street_number')) {
                 streetNumber = component.long_name;
               } else if (types.includes('route')) {
@@ -249,16 +281,16 @@ export default function EditStore() {
               lat: lat.toString(),
               lng: lng.toString(),
             }));
-            
-            // Update map
-            if (mapInstanceRef.current) {
+
+            // Update map and marker
+            if (mapInstanceRef.current && window.google) {
               const newPosition = { lat, lng };
               mapInstanceRef.current.setCenter(newPosition);
               
               if (markerRef.current) {
                 markerRef.current.setPosition(newPosition);
               } else {
-                markerRef.current = new google.maps.Marker({
+                markerRef.current = new window.google.maps.Marker({
                   position: newPosition,
                   map: mapInstanceRef.current,
                   title: formData.name || "Store Location",
@@ -267,41 +299,56 @@ export default function EditStore() {
             }
           }
         });
-        
+
         setIsAutocompleteLoaded(true);
       } catch (error) {
-        console.error("Failed to setup autocomplete:", error);
+        console.error('Failed to setup autocomplete:', error);
+        if (isMounted) {
+          setIsAutocompleteLoaded(true);
+        }
       }
     };
 
     setupAutocomplete();
-  }, [formData.name]);
 
-  // Debounced map update
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      
+      if (autocompleteInstanceRef.current && window.google && window.google.maps) {
+        window.google.maps.event.clearInstanceListeners(autocompleteInstanceRef.current);
+        autocompleteInstanceRef.current = null;
+      }
+    };
+  }, [isClientState, googleMapsApiKey, formData.name]);
+
+  // Debounced map update - only update when coordinates change
   useEffect(() => {
+    if (!isClientState || !mapInstanceRef.current || !formData.lat || !formData.lng) return;
+
     const timeoutId = setTimeout(() => {
-      if (mapInstanceRef.current && formData.lat && formData.lng) {
-        const newPosition = { 
-          lat: parseFloat(formData.lat), 
-          lng: parseFloat(formData.lng) 
-        };
-        
-        mapInstanceRef.current.setCenter(newPosition);
-        
-        if (markerRef.current) {
-          markerRef.current.setPosition(newPosition);
-        } else if (window.google) {
-          markerRef.current = new window.google.maps.Marker({
-            position: newPosition,
-            map: mapInstanceRef.current,
-            title: formData.name || "Store Location",
-          });
-        }
+      if (!mapInstanceRef.current || !window.google) return;
+
+      const newPosition = { 
+        lat: parseFloat(formData.lat), 
+        lng: parseFloat(formData.lng) 
+      };
+      
+      mapInstanceRef.current.setCenter(newPosition);
+      
+      if (markerRef.current) {
+        markerRef.current.setPosition(newPosition);
+      } else {
+        markerRef.current = new window.google.maps.Marker({
+          position: newPosition,
+          map: mapInstanceRef.current,
+          title: formData.name || "Store Location",
+        });
       }
     }, 500); // 500ms debounce
 
     return () => clearTimeout(timeoutId);
-  }, [formData.lat, formData.lng, formData.name]);
+  }, [isClientState, formData.lat, formData.lng, formData.name]);
 
   const getFullAddress = () => {
     const { name, address, address2, city, state, zip, phone } = formData;
@@ -333,7 +380,7 @@ export default function EditStore() {
         <Layout.Section>
           <Card sectioned>
             <Form method="post">
-              <Box paddingBlockEnd="400">
+              <Box style={{ marginBottom: 16 }}>
                 <Text variant="headingMd" as="h2">Store Details</Text>
               </Box>
               <FormLayout>
@@ -361,64 +408,68 @@ export default function EditStore() {
                   }}
                   autoComplete="tel"
                 />
-                <Box paddingBlockStart="400">
+                <Box style={{ marginBottom: 16 }}>
                   <Text variant="headingMd" as="h2">Location</Text>
                 </Box>
-                {/* Address field full width */}
-                <Box width="100%" marginBlockEnd="400">
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '4px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#202223',
-                  }}>
-                    Address <span style={{ color: '#d82c0d' }}>*</span>
-                  </label>
-                  <input
-                    ref={autocompleteRef}
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={(e) => handleChange("address")(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #c9cccf',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      fontFamily: 'inherit',
-                    }}
-                    placeholder="Start typing an address..."
-                    autoComplete="off"
-                  />
-                </Box>
-                {/* Map full width below address */}
-                <Box width="100%" marginBlockEnd="400">
-                  <div
-                    ref={mapRef}
-                    style={{
-                      width: '100%',
-                      height: '300px',
-                      border: '1px solid #c9cccf',
-                      borderRadius: '4px',
-                      backgroundColor: '#f6f6f7',
-                    }}
-                  >
-                    {!isMapLoaded && (
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: '100%',
-                        color: '#6d7175',
+                {isClientState && (
+                  <>
+                    {/* Address field full width */}
+                    <Box width="100%" style={{ marginBottom: 16 }}>
+                      <label style={{
+                        display: 'block',
+                        marginBottom: '4px',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        color: '#202223',
                       }}>
-                        <Spinner size="small" />
-                        <span style={{ marginLeft: '8px' }}>Loading map...</span>
+                        Address <span style={{ color: '#d82c0d' }}>*</span>
+                      </label>
+                      <input
+                        ref={autocompleteRef}
+                        type="text"
+                        name="address"
+                        value={formData.address}
+                        onChange={(e) => handleChange("address")(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: '1px solid #c9cccf',
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          fontFamily: 'inherit',
+                        }}
+                        placeholder="Start typing an address..."
+                        autoComplete="off"
+                      />
+                    </Box>
+                    {/* Map full width below address */}
+                    <Box width="100%" style={{ marginBottom: 16 }}>
+                      <div
+                        ref={mapRef}
+                        style={{
+                          width: '100%',
+                          height: '300px',
+                          border: '1px solid #c9cccf',
+                          borderRadius: '4px',
+                          backgroundColor: '#f6f6f7',
+                        }}
+                      >
+                        {!isMapLoaded && (
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%',
+                            color: '#6d7175',
+                          }}>
+                            <Spinner size="small" />
+                            <span style={{ marginLeft: '8px' }}>Loading map...</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </Box>
+                    </Box>
+                  </>
+                )}
                 {/* Hidden fields for form submission */}
                 <input type="hidden" name="address2" value={formData.address2} />
                 <input type="hidden" name="city" value={formData.city} />
@@ -426,7 +477,7 @@ export default function EditStore() {
                 <input type="hidden" name="zip" value={formData.zip} />
                 <input type="hidden" name="lat" value={formData.lat} />
                 <input type="hidden" name="lng" value={formData.lng} />
-                <Box paddingBlockStart="400">
+                <Box style={{ marginBottom: 16 }}>
                   <InlineStack align="end">
                     <ButtonGroup>
                       <Button
