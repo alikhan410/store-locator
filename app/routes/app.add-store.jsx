@@ -59,6 +59,7 @@ export const action = async ({ request }) => {
       zip: data.zip,
       lat: latitude ? parseFloat(latitude) : null,
       lng: longitude ? parseFloat(longitude) : null,
+      notes: data.notes || null,
       phone: data.phone || null,
     },
   });
@@ -68,6 +69,22 @@ export const action = async ({ request }) => {
 
 export default function AddStore() {
   const action = useActionData();
+  const [formData, setFormData] = useState({
+    name: "",
+    link: "",
+    address: "",
+    address2: "",
+    city: "",
+    state: "",
+    zip: "",
+    lat: "",
+    lng: "",
+    notes: "",
+    phone: "",
+    hours: "",
+  });
+  const [showPreview, setShowPreview] = useState(false);
+
   const shopify = useAppBridge();
 
   useEffect(() => {
@@ -83,6 +100,7 @@ export default function AddStore() {
         zip: "",
         lat: "",
         lng: "",
+        notes: "",
         phone: "",
         hours: "",
       });
@@ -90,21 +108,6 @@ export default function AddStore() {
       shopify.toast.show(action.error, { isError: true });
     }
   }, [action, shopify]);
-
-  const [formData, setFormData] = useState({
-    name: "",
-    link: "",
-    address: "",
-    address2: "",
-    city: "",
-    state: "",
-    zip: "",
-    lat: "",
-    lng: "",
-    phone: "",
-    hours: "",
-  });
-  const [showPreview, setShowPreview] = useState(false);
 
   const handleChange = useCallback(
     (field) => (value) => {
@@ -237,6 +240,14 @@ export default function AddStore() {
                     type="number"
                   />
                 </FormLayout.Group>
+                <TextField
+                  label="Notes"
+                  multiline={3}
+                  value={formData.notes}
+                  onChange={handleChange("notes")}
+                  autoComplete="off"
+                  placeholder="Add extra notes or reminders here"
+                />
 
                 <Divider />
 
