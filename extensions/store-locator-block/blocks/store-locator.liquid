@@ -10,7 +10,21 @@
 <script src="{{ 'haversineDistance.js' | asset_url }}" defer></script>
 
 <div class="store-locator-wrapper">
-  <h2 class="store-locator-heading">{{ block.settings.title }}</h2>
+  {% if block.settings.show_heading %}
+    <h2 
+      style="
+        --heading-align: {{ block.settings.heading_horizontal_alignment }};
+      "
+      class="store-locator-heading">{{ block.settings.heading }}</h2>
+  {% endif %}
+  {% if block.settings.show_content %}
+    <p 
+      style="
+        --content-align: {{ block.settings.content_horizontal_alignment }};
+      "
+      class="store-locator-content"> {{ block.settings.content }}
+    </p>
+  {% endif %}
 
   <!-- Top Input Bar -->
   <form class="store-locator-form" onsubmit="return false;">
@@ -18,7 +32,7 @@
       <input
         type="text"
         id="user-location"
-        placeholder="Your location" />
+        placeholder="{{ block.settings.search_bar_text }}" />
     </div>
 
     <select id="radius">
@@ -30,9 +44,17 @@
     </select>
 
     <button
+      style="
+        --btn-bg: {{ block.settings.button_background }};
+        --btn-hover-bg: {{ block.settings.button_hover }};
+        --btn-text: {{ block.settings.button_text_color }};
+      "
       type="submit"
       id="search-btn"
-      class="search-btn">Search</button>
+      class="search-btn"
+    >
+      Search
+    </button>
 
     {% comment %} <!-- 📍 Use My Location Button -->
     <button
@@ -286,9 +308,114 @@
 
 
 {% schema %}
-  {
-    "name": "Store Locator",
-    "target": "section",
-    "settings": []
-  }
+{
+  "name": "Store Locator",
+  "target": "section",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Button Colors"
+    },
+    {
+      "type": "color",
+      "id": "button_background",
+      "label": "Search button background",
+      "default": "#f3a52c"
+    },
+    {
+      "type": "color",
+      "id": "button_hover",
+      "label": "Search button hover background",
+      "default": "#e18f1f"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Search button text color",
+      "default": "#ffffff"
+    },    
+    {
+      "type": "header",
+      "content": "Search Bar"
+    },
+    {
+      "type": "text",
+      "id": "search_bar_text",
+      "label": "Search Bar Text",
+      "default": "Your location"
+    },
+    {
+      "type": "header",
+      "content": "Heading"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_heading",
+      "label": "Show heading",
+      "default": false
+    },
+    {
+      "type": "select",
+      "id": "heading_horizontal_alignment",
+      "label": "Header alignment",
+      "options": [
+        {
+          "value": "left",
+          "label": "Left"
+        },
+        {
+          "value": "center",
+          "label": "Center"
+        },
+        {
+          "value": "right",
+          "label": "Right"
+        }
+      ],
+      "default": "left"
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Store Locator"
+    },
+    {
+      "type": "header",
+      "content": "Content"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_content",
+      "label": "Show content",
+      "default": false
+    },
+    {
+      "type": "select",
+      "id": "content_horizontal_alignment",
+      "label": "Text alignment",
+      "options": [
+        {
+          "value": "left",
+          "label": "Left"
+        },
+        {
+          "value": "center",
+          "label": "Center"
+        },
+        {
+          "value": "right",
+          "label": "Right"
+        }
+      ],
+      "default": "left"
+    },
+    {
+      "type": "textarea",
+      "id": "content",
+      "label": "Content",
+      "default": "Find stores near you using the search bar below."
+    }
+  ]
+}
 {% endschema %}
