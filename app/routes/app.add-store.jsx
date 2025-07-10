@@ -241,6 +241,7 @@ export default function AddStore() {
                   />
                 </FormLayout.Group>
                 <TextField
+                  name="notes"
                   label="Notes"
                   multiline={3}
                   value={formData.notes}
