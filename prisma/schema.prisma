@@ -48,5 +48,6 @@ model Store {
   phone     String?
   lat       Float?
   lng       Float?
+  notes     String?
   createdAt DateTime @default(now())
 }
