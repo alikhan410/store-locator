@@ -3,7 +3,7 @@
 client_id = "fc0568978e5a7a64c4020dc35c935330"
 name = "store-locator"
 handle = "store-locator-176"
-application_url = "https://say-tend-embedded-wants.trycloudflare.com"
+application_url = "https://registrar-search-nodes-inclusive.trycloudflare.com"
 embedded = true
 
 [webhooks]
@@ -14,7 +14,7 @@ api_version = "2025-07"
 scopes = "write_app_proxy,write_products"
 
 [auth]
-redirect_urls = ["https://say-tend-embedded-wants.trycloudflare.com/auth/callback", "https://say-tend-embedded-wants.trycloudflare.com/auth/shopify/callback", "https://say-tend-embedded-wants.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://registrar-search-nodes-inclusive.trycloudflare.com/auth/callback", "https://registrar-search-nodes-inclusive.trycloudflare.com/auth/shopify/callback", "https://registrar-search-nodes-inclusive.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
