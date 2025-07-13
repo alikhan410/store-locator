@@ -14,11 +14,11 @@
 
 /* SEARCH BUTTON */
 .search-btn {
-  background-color: var(--btn-bg);
-  color: var(--btn-text);
+  background-color: var(--search-btn-bg);
+  color: var(--search-btn-text);
   padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 20px;
+  border-radius: var(--search-btn-border-radius);
   font-weight: 600;
   font-size: 1.2rem;
   cursor: pointer;
@@ -26,22 +26,22 @@
 }
 
 .search-btn:hover {
-  background-color: var(--btn-hover-bg);
+  background-color: var(--search-btn-hover-bg);
 }
 
 .search-btn:active {
   transform: scale(0.97);
-  background-color: var(--btn-hover-bg);
+  background-color: var(--search-btn-hover-bg);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 /* USE MY LOCATION BUTTON */
 
 .geo-btn {
-  background-color: #28a745;
-  color: white;
+  background-color: var(--geo-btn-bg);
+  color: var(--geo-btn-text);
   padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--geo-btn-border-radius);
   font-weight: 600;
   font-size: 1.2rem;
   cursor: pointer;
@@ -49,7 +49,13 @@
 }
 
 .geo-btn:hover {
-  background-color: #218838;
+  background-color: var(--geo-btn-hover-bg);
+}
+
+.geo-btn:active {
+  transform: scale(0.97);
+  background-color: var(--geo-btn-hover-bg);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* SUGGESTION BOX THAT SHOWS UP WHEN TYPING */

@@ -4,10 +4,11 @@
 <link href="{{ 'form.css' | asset_url }}" rel="stylesheet">
 <link href="{{ 'responsive.css' | asset_url }}" rel="stylesheet">
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css">
-<script defer src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
 <script src="{{ 'haversineDistance.js' | asset_url }}" defer></script>
-
+<script
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA-v7tciOzqBeCk4tJZnof8_d0A7elVgs8&libraries=places"
+  defer
+></script>
 <div class="store-locator-wrapper">
   {% if block.settings.show_heading %}
     <h2
@@ -46,9 +47,10 @@
 
     <button
       style="
-        --btn-bg: {{ block.settings.button_background }};
-        --btn-hover-bg: {{ block.settings.button_hover }};
-        --btn-text: {{ block.settings.button_text_color }};
+        --search-btn-bg: {{ block.settings.search_btn_background }};
+        --search-btn-hover-bg: {{ block.settings.search_btn_hover }};
+        --search-btn-text: {{ block.settings.search_btn_text_color }};
+        --search-btn-border-radius: {{ block.settings.search_btn_border_radius }}px;
       "
       type="submit"
       id="search-btn"
@@ -57,13 +59,20 @@
       Search
     </button>
 
-    {% comment %}
-      <!-- 📍 Use My Location Button -->
-      <button
-        type="button"
-        id="locate-btn"
-        class="geo-btn">📍 Use My Location</button>
-    {% endcomment %}
+    <!-- 📍 Use My Location Button -->
+    <button
+      style="
+        --geo-btn-bg: {{ block.settings.geo_btn_background }};
+        --geo-btn-hover-bg: {{ block.settings.geo_btn_hover }};
+        --geo-btn-text: {{ block.settings.geo_btn_text_color }};
+        --geo-btn-border-radius: {{ block.settings.geo_btn_border_radius }}px;
+      "
+      type="button"
+      id="locate-btn"
+      class="geo-btn"
+    >
+      {{ block.settings.geo_btn_text }}
+    </button>
   </form>
 
   <!-- Grid Layout -->
@@ -79,11 +88,11 @@
 </div>
 
 <script>
-  const locationInput = document.getElementById('user-location');
-  const resultsEl = document.getElementById('search-results');
-  const searchBtn = document.getElementById('search-btn');
-  const radiusSelect = document.getElementById('radius');
-  let stores;
+  let locationInput;
+  let resultsEl;
+  let searchBtn;
+  let radiusSelect;
+  let suggestionBox;
   let map;
   let markers = [];
   let userCoords;
@@ -91,10 +100,13 @@
   function updateMapAndList(userCoords, stores, radiusKm) {
     console.log(stores);
     resultsEl.innerHTML = '';
-    markers.forEach((m) => map.removeLayer(m));
-    markers = [];
 
-    const bounds = [];
+    if (markers.length) {
+      markers.forEach((m) => m.setMap(null));
+      markers = [];
+    }
+
+    const boundsObj = new google.maps.LatLngBounds();
 
     const nearbyStores = stores.filter((store) => {
       const dist = haversineDistance(userCoords.lat, userCoords.lng, store.lat, store.lng);
@@ -110,10 +122,22 @@
     nearbyStores.sort((a, b) => a.distance - b.distance);
 
     nearbyStores.forEach((store) => {
-      const marker = L.marker([store.lat, store.lng]).addTo(map);
-      marker.bindPopup(`<b>${store.name}</b><br>${store.address}<br>${store.distance} km`);
+      const marker = new google.maps.Marker({
+        position: { lat: store.lat, lng: store.lng },
+        map,
+        title: store.name,
+      });
+
+      const infoWindow = new google.maps.InfoWindow({
+        content: `<b>${store.name}</b><br>${store.address}<br>${store.distance} km`,
+      });
+
+      marker.addListener('click', () => {
+        infoWindow.open(map, marker);
+      });
+
       markers.push(marker);
-      bounds.push([store.lat, store.lng]);
+      boundsObj.extend(marker.getPosition());
 
       const formatName = (name) => name.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
       function toTitleCase(str) {
@@ -126,175 +150,127 @@
       }
 
       resultsEl.innerHTML += `
-            <div class="store-result" data-lat="${store.lat}" data-lng="${store.lng}">
-              <div class="store-name">${formatName(store.name)}</div>
-              <div class="store-address">
-                ${toTitleCase(store.address)}${store.address2 ? ', ' + toTitleCase(store.address2) : ''}, 
-                ${toTitleCase(store.city)}, ${store.state.toUpperCase()} ${store.zip}
-              </div>
-              ${store.phone ? `<div class="store-phone">${store.phone}</div>` : ''}
-              ${
-                store.link
-                  ? `<div class="store-link"><a href="${store.link}" target="_blank" rel="noopener noreferrer">Store Website</a></div>`
-                  : ''
-              }
-              <div class="store-distance">${store.distance} km away</div>
-            </div>
-          `;
+        <div class="store-result" data-lat="${store.lat}" data-lng="${store.lng}">
+          <div class="store-name">${formatName(store.name)}</div>
+          <div class="store-address">
+            ${toTitleCase(store.address)}${store.address2 ? ', ' + toTitleCase(store.address2) : ''}, 
+            ${toTitleCase(store.city)}, ${store.state.toUpperCase()} ${store.zip}
+          </div>
+          ${store.phone ? `<div class="store-phone">${store.phone}</div>` : ''}
+          ${
+            store.link
+              ? `<div class="store-link"><a href="${store.link}" target="_blank" rel="noopener noreferrer">Store Website</a></div>`
+              : ''
+          }
+          <div class="store-distance">${store.distance} km away</div>
+        </div>
+      `;
+
+      const storeEls = document.querySelectorAll('.store-result');
+      storeEls.forEach((storeEl) => {
+        storeEl.addEventListener('click', () => {
+          const lat = parseFloat(storeEl.dataset.lat);
+          const lng = parseFloat(storeEl.dataset.lng);
+
+          if (!isNaN(lat) && !isNaN(lng)) {
+            map.setCenter({ lat, lng });
+            map.setZoom(19);
+          }
+
+          if (window.matchMedia('(max-width: 768px)').matches) {
+            document.getElementById('store-map').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      });
     });
 
-    map.fitBounds(bounds, { padding: [50, 50] });
+    map.fitBounds(boundsObj);
   }
+
   document.addEventListener('DOMContentLoaded', () => {
+    locationInput = document.getElementById('user-location');
+    resultsEl = document.getElementById('search-results');
+    searchBtn = document.getElementById('search-btn');
+    radiusSelect = document.getElementById('radius');
+    suggestionBox = document.createElement('div');
     const mapEl = document.getElementById('store-map');
     const locateBtn = document.getElementById('locate-btn');
 
-    map = L.map(mapEl).setView([37.0902, -95.7129], 4);
+    map = new google.maps.Map(mapEl, {
+      center: { lat: 37.0902, lng: -95.7129 },
+      zoom: 4,
+    });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-    }).addTo(map);
+    const autocomplete = new google.maps.places.Autocomplete(locationInput, {
+      types: ['geocode'],
+    });
 
-    // locateBtn.addEventListener("click", () => {
-    //   navigator.geolocation.getCurrentPosition(
-    //     position => {
-    //       const userCoords = {
-    //         lat: position.coords.latitude,
-    //         lng: position.coords.longitude
-    //       };
-    //       const radiusKm = parseInt(radiusSelect.value, 10);
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (!place.geometry || !place.geometry.location) return;
 
-    //       // fetch("{{ 'store_locations.json' | asset_url }}")
-    //       //   .then(res => res.json())
-    //       //   .then(data => {
-    //       //     updateMapAndList(userCoords, data.stores, radiusKm);
-    //       //   });
-    //       fetch("/apps/store-locations")
-    //         .then(res => res.json())
-    //         .then(data => {
+      userCoords = {
+        lat: place.geometry.location.lat(),
+        lng: place.geometry.location.lng(),
+      };
 
-    //           updateMapAndList(userCoords, data.stores, radiusKm);
-    //         });
-    //     },
-    //     error => {
-    //       alert("Location access denied or unavailable.");
-    //     }
-    //   );
-    // });
+      const radiusKm = parseInt(radiusSelect.value, 10);
+
+      fetch(`/apps/store-locations?query=${encodeURIComponent(place.formatted_address)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          updateMapAndList(userCoords, data.stores, radiusKm);
+        });
+    });
+
+    locateBtn.addEventListener('click', () => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          userCoords = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          const radiusKm = parseInt(radiusSelect.value, 10);
+
+          fetch('/apps/store-locations')
+            .then((res) => res.json())
+            .then((data) => {
+              updateMapAndList(userCoords, data.stores, radiusKm);
+            });
+        },
+        (error) => {
+          alert('Location access denied or unavailable.');
+        }
+      );
+    });
 
     searchBtn.addEventListener('click', () => {
       suggestionBox.innerHTML = '';
       const radiusKm = parseInt(radiusSelect.value, 10);
-
       const query = locationInput.value.trim();
+
       if (!query || query.length < 3) {
-        suggestionBox.innerHTML = '';
+        resultsEl.innerHTML = '<p>Please enter a location to search.</p>';
         return;
       }
 
-      fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=1`)
-        .then((res) => res.json())
-        .then((data) => {
-          data.features.forEach((feature) => {
-            userCoords = {
-              lat: feature.geometry.coordinates[1],
-              lng: feature.geometry.coordinates[0],
-            };
-          });
-          // return fetch("{{ 'store_locations.json' | asset_url }}");
-          // return fetch("/apps/store-locations");
-          return fetch(`/apps/store-locations?query=${encodeURIComponent(query)}`);
-        })
-        .then((res) => res.json())
-        .then((data) => {
-          updateMapAndList(userCoords, data.stores, radiusKm);
+      const geocoder = new google.maps.Geocoder();
 
-          const storeEls = document.querySelectorAll('.store-result');
-          storeEls.forEach((storeEl) => {
-            storeEl.addEventListener('click', () => {
-              const lat = parseFloat(storeEl.dataset.lat);
-              const lng = parseFloat(storeEl.dataset.lng);
+      geocoder.geocode({ address: query }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const loc = results[0].geometry.location;
+          userCoords = { lat: loc.lat(), lng: loc.lng() };
 
-              if (!isNaN(lat) && !isNaN(lng)) {
-                map.setView([lat, lng], 17);
-              }
-
-              const mapEl = document.getElementById('store-map');
-
-              if (window.matchMedia('(max-width: 768px)').matches) {
-                mapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }
+          fetch(`/apps/store-locations?query=${encodeURIComponent(query)}`)
+            .then((res) => res.json())
+            .then((data) => {
+              updateMapAndList(userCoords, data.stores, radiusKm);
             });
-          });
-        });
+        } else {
+          resultsEl.innerHTML = '<p>Location not found. Try another search.</p>';
+        }
+      });
     });
-  });
-
-  const suggestionBox = document.createElement('div');
-  suggestionBox.className = 'autocomplete-suggestions';
-  locationInput.parentNode.appendChild(suggestionBox);
-
-  let photonTimeout = null;
-
-  locationInput.addEventListener('input', () => {
-    const query = locationInput.value.trim();
-    if (!query || query.length < 3) {
-      suggestionBox.innerHTML = '';
-      return;
-    }
-
-    clearTimeout(photonTimeout);
-    photonTimeout = setTimeout(() => {
-      fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`)
-        .then((res) => res.json())
-        .then((data) => {
-          suggestionBox.innerHTML = '';
-          data.features.forEach((feature) => {
-            const item = document.createElement('div');
-            item.className = 'suggestion-item';
-            item.textContent =
-              feature.properties.name + (feature.properties.city ? `, ${feature.properties.city}` : '');
-
-            item.addEventListener('click', () => {
-              locationInput.value = item.textContent;
-              suggestionBox.innerHTML = '';
-
-              userCoords = {
-                lat: feature.geometry.coordinates[1],
-                lng: feature.geometry.coordinates[0],
-              };
-              const radiusKm = parseInt(radiusSelect.value, 10);
-
-              // fetch("{{ 'stores.json' | asset_url }}")
-              // fetch("/apps/store-locations")
-              fetch(`/apps/store-locations?query=${encodeURIComponent(query)}`)
-                .then((res) => res.json())
-                .then((data) => {
-                  updateMapAndList(userCoords, data.stores, radiusKm);
-
-                  const storeEls = document.querySelectorAll('.store-result');
-                  storeEls.forEach((storeEl) => {
-                    storeEl.addEventListener('click', () => {
-                      const lat = parseFloat(storeEl.dataset.lat);
-                      const lng = parseFloat(storeEl.dataset.lng);
-
-                      if (!isNaN(lat) && !isNaN(lng)) {
-                        map.setView([lat, lng], 17);
-                      }
-
-                      const mapEl = document.getElementById('store-map');
-
-                      if (window.matchMedia('(max-width: 768px)').matches) {
-                        mapEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
-                    });
-                  });
-                });
-            });
-            suggestionBox.appendChild(item);
-          });
-        });
-    }, 300); // debounce
   });
 </script>
 
@@ -305,25 +281,73 @@
   "settings": [
     {
       "type": "header",
-      "content": "Button Colors"
+      "content": "Search Button"
     },
     {
       "type": "color",
-      "id": "button_background",
-      "label": "Search button background",
+      "id": "search_btn_background",
+      "label": "Background",
       "default": "#f3a52c"
     },
     {
       "type": "color",
-      "id": "button_hover",
-      "label": "Search button hover background",
+      "id": "search_btn_hover",
+      "label": "hover background",
       "default": "#e18f1f"
     },
     {
       "type": "color",
-      "id": "button_text_color",
-      "label": "Search button text color",
+      "id": "search_btn_text_color",
+      "label": "Text color",
       "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "search_btn_border_radius",
+      "min": 0,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "label": "Border radius",
+      "default": 8
+    },
+    {
+      "type": "header",
+      "content": "Location Button"
+    },
+    {
+      "type": "color",
+      "id": "geo_btn_background",
+      "label": "Background",
+      "default": "#3ab636ff"
+    },
+    {
+      "type": "color",
+      "id": "geo_btn_hover",
+      "label": "Hover background",
+      "default": "#257035ff"
+    },
+    {
+      "type": "color",
+      "id": "geo_btn_text_color",
+      "label": "Text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "range",
+      "id": "geo_btn_border_radius",
+      "min": 0,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "label": "Border radius",
+      "default": 8
+    },
+    {
+      "type": "text",
+      "id": "geo_btn_text",
+      "label": "Button text",
+      "default": "Use My Location"
     },
     {
       "type": "header",
