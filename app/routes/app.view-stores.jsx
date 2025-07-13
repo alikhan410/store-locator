@@ -201,7 +201,7 @@ export default function StoresPage() {
     },
   ];
 
-  // 🔁 This would trigger a fetch
+  // This would trigger a fetch
   const fetchFilteredStores = useCallback(() => {
     const params = new URLSearchParams();
 
@@ -217,7 +217,7 @@ export default function StoresPage() {
       .then((data) => {
         console.log("Filtered stores:", data);
         setFilteredStores(data.stores);
-        setCurrentPage(1); // ✅ Reset to page 1
+        setCurrentPage(1);
       })
       .catch((err) => console.error("Failed to fetch stores:", err));
   }, [queryValue, stateFilter, cityFilter, hasCoordinates, hasPhone, hasLink]);
@@ -247,6 +247,7 @@ export default function StoresPage() {
 
   const rowMarkup = paginatedStores.map((store, index) => (
     <IndexTable.Row
+      dataPrimaryLink
       selected={selectedResources.includes(store.id)}
       id={store.id}
       key={store.id}
@@ -269,7 +270,7 @@ export default function StoresPage() {
       <IndexTable.Cell>{store.lat || "N/A"}</IndexTable.Cell>
       <IndexTable.Cell>{store.lng || "N/A"}</IndexTable.Cell>
       <IndexTable.Cell>{store.phone || "N/A"}</IndexTable.Cell>
-      <IndexTable.Cell>
+      {/* <IndexTable.Cell>
         {store.link ? (
           <Link url={store.link} target="_blank">
             Visit
@@ -277,11 +278,9 @@ export default function StoresPage() {
         ) : (
           "N/A"
         )}
-      </IndexTable.Cell>
+      </IndexTable.Cell> */}
       <IndexTable.Cell>
-        <Link dataPrimaryLink url={`/app/edit-store/${store.id}`}>
-          Edit
-        </Link>
+        <Link dataPrimaryLink url={`/app/edit-store/${store.id}`}></Link>
       </IndexTable.Cell>
     </IndexTable.Row>
   ));
@@ -345,8 +344,8 @@ export default function StoresPage() {
             { title: "Latitude" },
             { title: "Longitude" },
             { title: "Phone" },
-            { title: "Link" },
-            { title: "Actions" },
+            // { title: "Link" },
+            // { title: "Actions" },
           ]}
           selectable
         >
@@ -381,7 +380,3 @@ export default function StoresPage() {
     </Page>
   );
 }
-// onImport={(parsedStores) => {
-//   setFilteredStores((prev) => [...parsedStores, ...prev]);
-//   setShowImport(false);
-// }}
