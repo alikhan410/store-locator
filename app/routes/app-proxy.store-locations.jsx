@@ -1,30 +1,37 @@
 import prisma from "../db.server";
+import { getBoundingBox, haversineDistance } from "../helper/geoUtils";
 
 export const loader = async ({ request }) => {
   try {
     const url = new URL(request.url);
-    const query = url.searchParams.get("query") || "";
-    const tokens = query
-      .toLowerCase()
-      .split(/[\s,]+/)
-      .filter((token) => token && token !== "usa");
+    const lat = parseFloat(url.searchParams.get("lat") || "0");
+    const lng = parseFloat(url.searchParams.get("lng") || "0");
+    const radiusKm = parseFloat(url.searchParams.get("radius") || "50");
 
-    console.log("query tokens are: ", tokens);
+    const { minLat, maxLat, minLng, maxLng } = getBoundingBox(
+      lat,
+      lng,
+      radiusKm,
+    );
 
-    //TODO - FIND ALTERNATIVE WAY FOR QUERYING
-    const stores = await prisma.store.findMany({
+    // Rough pre-filter using bounding box excluding where lat and lng are null
+    const nearbyCandidates = await prisma.store.findMany({
       where: {
-        OR: tokens.flatMap((token) => [
-          { city: { contains: token, mode: "insensitive" } },
-          { state: { contains: token, mode: "insensitive" } },
-          { address: { contains: token, mode: "insensitive" } },
-          { address2: { contains: token, mode: "insensitive" } },
-          { name: { contains: token, mode: "insensitive" } },
-        ]),
+        lat: { not: null, gte: minLat, lte: maxLat },
+        lng: { not: null, gte: minLng, lte: maxLng },
       },
     });
 
-    console.log("stores are: ", stores);
+    // Precise filter using Haversine
+    const stores = nearbyCandidates
+      .map((store) => {
+        const distance = haversineDistance(lat, lng, store.lat, store.lng);
+        return { ...store, distance };
+      })
+      .filter((store) => store.distance <= radiusKm)
+      .sort((a, b) => a.distance - b.distance)
+      .map((store) => ({ ...store, distance: store.distance.toFixed(2) }));
+
     return { stores };
   } catch (error) {
     console.error("Failed to load stores", error);
