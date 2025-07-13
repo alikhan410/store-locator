@@ -97,6 +97,16 @@
   let markers = [];
   let userCoords;
 
+  const formatName = (name) => name.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  const toTitleCase = (str) => {
+    if (!str) return '';
+    return str
+      .toLowerCase()
+      .split(' ')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   function updateMapAndList(userCoords, stores, radiusKm) {
     console.log(stores);
     resultsEl.innerHTML = '';
@@ -108,20 +118,12 @@
 
     const boundsObj = new google.maps.LatLngBounds();
 
-    const nearbyStores = stores.filter((store) => {
-      const dist = haversineDistance(userCoords.lat, userCoords.lng, store.lat, store.lng);
-      store.distance = dist.toFixed(2);
-      return dist <= radiusKm;
-    });
-
-    if (nearbyStores.length === 0) {
+    if (stores.length === 0) {
       resultsEl.innerHTML = '<p>No stores found within selected radius.</p>';
       return;
     }
 
-    nearbyStores.sort((a, b) => a.distance - b.distance);
-
-    nearbyStores.forEach((store) => {
+    stores.forEach((store) => {
       const marker = new google.maps.Marker({
         position: { lat: store.lat, lng: store.lng },
         map,
@@ -139,16 +141,6 @@
       markers.push(marker);
       boundsObj.extend(marker.getPosition());
 
-      const formatName = (name) => name.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
-      function toTitleCase(str) {
-        if (!str) return '';
-        return str
-          .toLowerCase()
-          .split(' ')
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' ');
-      }
-
       resultsEl.innerHTML += `
         <div class="store-result" data-lat="${store.lat}" data-lng="${store.lng}">
           <div class="store-name">${formatName(store.name)}</div>
@@ -165,25 +157,23 @@
           <div class="store-distance">${store.distance} km away</div>
         </div>
       `;
+    });
+    const storeEls = document.querySelectorAll('.store-result');
+    storeEls.forEach((storeEl) => {
+      storeEl.addEventListener('click', () => {
+        const lat = parseFloat(storeEl.dataset.lat);
+        const lng = parseFloat(storeEl.dataset.lng);
 
-      const storeEls = document.querySelectorAll('.store-result');
-      storeEls.forEach((storeEl) => {
-        storeEl.addEventListener('click', () => {
-          const lat = parseFloat(storeEl.dataset.lat);
-          const lng = parseFloat(storeEl.dataset.lng);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          map.setCenter({ lat, lng });
+          map.setZoom(19);
+        }
 
-          if (!isNaN(lat) && !isNaN(lng)) {
-            map.setCenter({ lat, lng });
-            map.setZoom(19);
-          }
-
-          if (window.matchMedia('(max-width: 768px)').matches) {
-            document.getElementById('store-map').scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        });
+        if (window.matchMedia('(max-width: 768px)').matches) {
+          document.getElementById('store-map').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       });
     });
-
     map.fitBounds(boundsObj);
   }
 
@@ -216,7 +206,15 @@
 
       const radiusKm = parseInt(radiusSelect.value, 10);
 
-      fetch(`/apps/store-locations?query=${encodeURIComponent(place.formatted_address)}`)
+      // Show loading spinner
+      resultsEl.innerHTML = `
+        <div class="store-loading">
+          <div class="spinner">&nbsp;</div>
+          
+        </div>
+      `;
+
+      fetch(`/apps/store-locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}`)
         .then((res) => res.json())
         .then((data) => {
           updateMapAndList(userCoords, data.stores, radiusKm);
@@ -231,6 +229,14 @@
             lng: position.coords.longitude,
           };
           const radiusKm = parseInt(radiusSelect.value, 10);
+
+          // Show loading spinner
+          resultsEl.innerHTML = `
+            <div class="store-loading">
+              <div class="spinner">&nbsp;</div>
+
+            </div>
+          `;
 
           fetch('/apps/store-locations')
             .then((res) => res.json())
@@ -261,7 +267,15 @@
           const loc = results[0].geometry.location;
           userCoords = { lat: loc.lat(), lng: loc.lng() };
 
-          fetch(`/apps/store-locations?query=${encodeURIComponent(query)}`)
+          // Show loading spinner
+          resultsEl.innerHTML = `
+            <div class="store-loading">
+              <div class="spinner">&nbsp;</div>
+              
+            </div>
+          `;
+
+          fetch(`/apps/store-locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}`)
             .then((res) => res.json())
             .then((data) => {
               updateMapAndList(userCoords, data.stores, radiusKm);
