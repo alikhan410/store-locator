@@ -8,12 +8,14 @@ export function loadGoogleMapsScript(apiKey) {
   }
 
   // Return resolved promise if already loaded
-  if (typeof window !== 'undefined' && window.google && window.google.maps) {
+  if (typeof window !== "undefined" && window.google && window.google.maps) {
     return Promise.resolve(window.google);
   }
 
   // Check if script is already in DOM
-  const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+  const existingScript = document.querySelector(
+    'script[src*="maps.googleapis.com"]',
+  );
   if (existingScript) {
     return new Promise((resolve) => {
       const check = () => {
@@ -29,27 +31,27 @@ export function loadGoogleMapsScript(apiKey) {
 
   // Create new script promise
   googleMapsScriptPromise = new Promise((resolve, reject) => {
-    if (typeof window === 'undefined') {
-      reject(new Error('Window not available'));
+    if (typeof window === "undefined") {
+      reject(new Error("Window not available"));
       return;
     }
 
     const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
     script.async = true;
     script.defer = true;
-    
+
     script.onload = () => {
       if (window.google && window.google.maps) {
         resolve(window.google);
       } else {
-        reject(new Error('Google Maps failed to load'));
+        reject(new Error("Google Maps failed to load"));
       }
     };
-    
+
     script.onerror = () => {
       googleMapsScriptPromise = null;
-      reject(new Error('Failed to load Google Maps script'));
+      reject(new Error("Failed to load Google Maps script"));
     };
 
     document.head.appendChild(script);
@@ -59,17 +61,21 @@ export function loadGoogleMapsScript(apiKey) {
 }
 
 // Utility to clean up Google Maps instances
-export function cleanupGoogleMapsInstances(mapInstance, markerInstance, autocompleteInstance) {
+export function cleanupGoogleMapsInstances(
+  mapInstance,
+  markerInstance,
+  autocompleteInstance,
+) {
   // Clean up marker
   if (markerInstance) {
     markerInstance.setMap(null);
   }
-  
+
   // Clean up map instance
   if (mapInstance && window.google && window.google.maps) {
     window.google.maps.event.clearInstanceListeners(mapInstance);
   }
-  
+
   // Clean up autocomplete instance
   if (autocompleteInstance && window.google && window.google.maps) {
     window.google.maps.event.clearInstanceListeners(autocompleteInstance);
@@ -78,5 +84,5 @@ export function cleanupGoogleMapsInstances(mapInstance, markerInstance, autocomp
 
 // Utility to check if we're on the client
 export function isClient() {
-  return typeof window !== 'undefined';
-} 
+  return typeof window !== "undefined";
+}

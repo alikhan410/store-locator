@@ -64,7 +64,6 @@ export const action = async ({ request }) => {
 export default function AddStore() {
   const action = useActionData();
   const { googleMapsApiKey } = useLoaderData();
-  const shopify = useAppBridge();
   const [isClientState, setIsClientState] = useState(false);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [isAutocompleteLoaded, setIsAutocompleteLoaded] = useState(false);
@@ -124,7 +123,7 @@ export default function AddStore() {
     } else if (action?.error) {
       shopify.toast.show(action.error, { isError: true });
     }
-  }, [action, shopify]);
+  }, [action]);
 
   // Initializing Map Only Onceeeeeee
   useEffect(() => {
@@ -330,7 +329,7 @@ export default function AddStore() {
   }, [isClientState, googleMapsApiKey, formData.name]);
 
   return (
-    <Page>
+    <Page title="Add Store">
       <TitleBar title="Store Location Form" />
       <Layout>
         <Layout.Section>
