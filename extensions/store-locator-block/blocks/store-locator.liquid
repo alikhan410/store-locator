@@ -6,7 +6,7 @@
 
 <script src="{{ 'haversineDistance.js' | asset_url }}" defer></script>
 <script
-  src="https://maps.googleapis.com/maps/api/js?key={{ GOOGLE_MAPS_PUBLIC_KEY }}&libraries=places"
+  src="https://maps.googleapis.com/maps/api/js?key={{ block.settings.GOOGLE_PUBLIC_API_KEY }}&libraries=places"
   defer
 ></script>
 <div class="store-locator-wrapper">
@@ -27,7 +27,7 @@
     </p>
   {% endif %}
 
-  <!-- Top Input Bar -->
+  <!-- Top Input Bar for autocomplete api -->
   <form class="store-locator-form" onsubmit="return false;">
     <div class="input-container">
       <input
@@ -59,7 +59,7 @@
       Search
     </button>
 
-    <!-- 📍 Use My Location Button -->
+    <!-- Use My Location Button -->
     <button
       style="
         --geo-btn-bg: {{ block.settings.geo_btn_background }};
@@ -193,6 +193,7 @@
 
     const autocomplete = new google.maps.places.Autocomplete(locationInput, {
       types: ['geocode'],
+      componentRestrictions: { country: 'us' },
     });
 
     autocomplete.addListener('place_changed', () => {
@@ -206,15 +207,13 @@
 
       const radiusKm = parseInt(radiusSelect.value, 10);
 
-      // Show loading spinner
       resultsEl.innerHTML = `
         <div class="store-loading">
           <div class="spinner">&nbsp;</div>
-          
         </div>
       `;
 
-      fetch(`/apps/store-locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}`)
+      fetch(`/apps/store-locator/locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}`)
         .then((res) => res.json())
         .then((data) => {
           updateMapAndList(userCoords, data.stores, radiusKm);
@@ -230,15 +229,13 @@
           };
           const radiusKm = parseInt(radiusSelect.value, 10);
 
-          // Show loading spinner
           resultsEl.innerHTML = `
             <div class="store-loading">
               <div class="spinner">&nbsp;</div>
-
             </div>
           `;
 
-          fetch('/apps/store-locations')
+          fetch(`/apps/store-locator/locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}`)
             .then((res) => res.json())
             .then((data) => {
               updateMapAndList(userCoords, data.stores, radiusKm);
@@ -260,30 +257,31 @@
         return;
       }
 
-      const geocoder = new google.maps.Geocoder();
+      resultsEl.innerHTML = `
+        <div class="store-loading">
+          <div class="spinner">&nbsp;</div>
+        </div>
+      `;
 
-      geocoder.geocode({ address: query }, (results, status) => {
-        if (status === 'OK' && results[0]) {
-          const loc = results[0].geometry.location;
-          userCoords = { lat: loc.lat(), lng: loc.lng() };
+      fetch(`/apps/store-locator/geocode?address=${encodeURIComponent(query)}`)
+        .then((res) => res.json())
+        .then((geo) => {
+          if (!geo.lat || !geo.lng) {
+            resultsEl.innerHTML = '<p>Location not found. Try another search.</p>';
+            return;
+          }
 
-          // Show loading spinner
-          resultsEl.innerHTML = `
-            <div class="store-loading">
-              <div class="spinner">&nbsp;</div>
-              
-            </div>
-          `;
+          userCoords = { lat: geo.lat, lng: geo.lng };
 
-          fetch(`/apps/store-locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}`)
+          fetch(`/apps/store-locator/locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}`)
             .then((res) => res.json())
             .then((data) => {
               updateMapAndList(userCoords, data.stores, radiusKm);
             });
-        } else {
-          resultsEl.innerHTML = '<p>Location not found. Try another search.</p>';
-        }
-      });
+        })
+        .catch(() => {
+          resultsEl.innerHTML = '<p>Something went wrong. Try again later.</p>';
+        });
     });
   });
 </script>
@@ -293,6 +291,12 @@
   "name": "Store Locator",
   "target": "section",
   "settings": [
+    {
+      "type": "text",
+      "id": "GOOGLE_PUBLIC_API_KEY",
+      "label": "Google Public API Key",
+      "default": "Your api key here"
+    },
     {
       "type": "header",
       "content": "Search Button"
