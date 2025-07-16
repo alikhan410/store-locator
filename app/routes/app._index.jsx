@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { useFetcher } from "@remix-run/react";
+import { useEffect, useState } from "react";
+import { useLoaderData, useNavigate } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -11,313 +11,382 @@ import {
   List,
   Link,
   InlineStack,
+  Badge,
+  Icon,
+  EmptyState,
+  Spinner,
+  Divider,
+  ProgressBar,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
+import {
+  AlertCircleIcon,
+  LocationIcon,
+  PhoneIcon,
+  ExportIcon,
+  ImportIcon,
+  PlusIcon,
+  ListBulletedIcon,
+} from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
 
-  return null;
-};
+  const prisma = (await import("../db.server")).default;
 
-export const action = async ({ request }) => {
-  const { admin } = await authenticate.admin(request);
-  const color = ["Red", "Orange", "Yellow", "Green"][
-    Math.floor(Math.random() * 4)
-  ];
-  const response = await admin.graphql(
-    `#graphql
-      mutation populateProduct($product: ProductCreateInput!) {
-        productCreate(product: $product) {
-          product {
-            id
-            title
-            handle
-            status
-            variants(first: 10) {
-              edges {
-                node {
-                  id
-                  price
-                  barcode
-                  createdAt
-                }
-              }
-            }
-          }
-        }
-      }`,
-    {
-      variables: {
-        product: {
-          title: `${color} Snowboard`,
-        },
-      },
-    },
+  // Get all stores with metrics
+  const stores = await prisma.store.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+
+  const now = new Date();
+  const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  // Calculate metrics
+  const totalStores = stores.length;
+  const recentStores = stores.filter(
+    (store) => new Date(store.createdAt) > oneWeekAgo,
   );
-  const responseJson = await response.json();
-  const product = responseJson.data.productCreate.product;
-  const variantId = product.variants.edges[0].node.id;
-  const variantResponse = await admin.graphql(
-    `#graphql
-    mutation shopifyRemixTemplateUpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-        productVariants {
-          id
-          price
-          barcode
-          createdAt
-        }
-      }
-    }`,
-    {
-      variables: {
-        productId: product.id,
-        variants: [{ id: variantId, price: "100.00" }],
-      },
-    },
-  );
-  const variantResponseJson = await variantResponse.json();
+  const uniqueStates = [...new Set(stores.map((store) => store.state))];
+  const geocodedStores = stores.filter((store) => store.lat && store.lng);
+  const storesWithPhone = stores.filter((store) => store.phone);
+  const storesWithLink = stores.filter((store) => store.link);
+
+  // Health metrics
+  const missingCoordinates = stores.filter(
+    (store) => !store.lat || !store.lng,
+  ).length;
+  const missingPhone = stores.filter((store) => !store.phone).length;
 
   return {
-    product: responseJson.data.productCreate.product,
-    variant: variantResponseJson.data.productVariantsBulkUpdate.productVariants,
+    stores: stores.slice(0, 10), // Recent 10 for activity feed
+    metrics: {
+      totalStores,
+      recentStoresCount: recentStores.length,
+      uniqueStatesCount: uniqueStates.length,
+      geocodedPercent:
+        totalStores > 0
+          ? Math.round((geocodedStores.length / totalStores) * 100)
+          : 0,
+      storesWithPhone: storesWithPhone.length,
+      storesWithLink: storesWithLink.length,
+      missingCoordinates,
+      missingPhone,
+    },
   };
 };
 
 export default function Index() {
-  const fetcher = useFetcher();
+  const { stores, metrics } = useLoaderData();
+  const navigate = useNavigate();
   const shopify = useAppBridge();
-  const isLoading =
-    ["loading", "submitting"].includes(fetcher.state) &&
-    fetcher.formMethod === "POST";
-  const productId = fetcher.data?.product?.id.replace(
-    "gid://shopify/Product/",
-    "",
-  );
+  const [showImport, setShowImport] = useState(false);
 
-  useEffect(() => {
-    if (productId) {
-      shopify.toast.show("Product created");
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+
+    if (diffInHours < 24) {
+      return `${diffInHours} hours ago`;
     }
-  }, [productId, shopify]);
-  const generateProduct = () => fetcher.submit({}, { method: "POST" });
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 1) {
+      return "Yesterday";
+    }
+    if (diffInDays < 7) {
+      return `${diffInDays} days ago`;
+    }
+    return date.toLocaleDateString();
+  };
+
+  const handleExportStores = () => {
+    // Import the export function and call it
+    import("../helper/exportAction").then(({ exportAllStoresToCSV }) => {
+      exportAllStoresToCSV(stores);
+      shopify.toast.show("Stores exported successfully!");
+    });
+  };
+
+  const handleFixGeocoding = () => {
+    shopify.toast.show("Geocoding fix feature coming soon!");
+    // This would trigger a background job to geocode missing stores
+  };
 
   return (
     <Page>
-      <TitleBar title="Store Locator"></TitleBar>
+      <TitleBar title="Store Locator Dashboard" />
       <BlockStack gap="500">
-        <Layout>
-          <Layout.Section>
-            <Card>
-              <BlockStack gap="500">
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    Congrats on creating a new Shopify app 🎉
-                  </Text>
-                  <Text variant="bodyMd" as="p">
-                    This embedded app template uses{" "}
-                    <Link
-                      url="https://shopify.dev/docs/apps/tools/app-bridge"
-                      target="_blank"
-                      removeUnderline
-                    >
-                      App Bridge
-                    </Link>{" "}
-                    interface examples like an{" "}
-                    <Link url="/app/additional" removeUnderline>
-                      additional page in the app nav
-                    </Link>
-                    , as well as an{" "}
-                    <Link
-                      url="https://shopify.dev/docs/api/admin-graphql"
-                      target="_blank"
-                      removeUnderline
-                    >
-                      Admin GraphQL
-                    </Link>{" "}
-                    mutation demo, to provide a starting point for app
-                    development.
-                  </Text>
-                </BlockStack>
-                <BlockStack gap="200">
-                  <Text as="h3" variant="headingMd">
-                    Get started with products
-                  </Text>
-                  <Text as="p" variant="bodyMd">
-                    Generate a product with GraphQL and get the JSON output for
-                    that product. Learn more about the{" "}
-                    <Link
-                      url="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
-                      target="_blank"
-                      removeUnderline
-                    >
-                      productCreate
-                    </Link>{" "}
-                    mutation in our API references.
-                  </Text>
-                </BlockStack>
-                <InlineStack gap="300">
-                  <Button loading={isLoading} onClick={generateProduct}>
-                    Generate a product
-                  </Button>
-                  {fetcher.data?.product && (
-                    <Button
-                      url={`shopify:admin/products/${productId}`}
-                      target="_blank"
-                      variant="plain"
-                    >
-                      View product
-                    </Button>
-                  )}
+        {/* Welcome message for new users */}
+        {metrics.totalStores === 0 && (
+          <Card>
+            <EmptyState
+              heading="Welcome to Store Locator! 🎉"
+              action={{
+                content: "Add Your First Store",
+                onAction: () => navigate("/app/add-store"),
+              }}
+              secondaryAction={{
+                content: "Import Multiple Stores",
+                onAction: () => navigate("/app/view-stores"),
+              }}
+              image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+            >
+              <Text variant="bodyMd" as="p">
+                Get started by adding your store locations to help customers
+                find you easily.
+              </Text>
+            </EmptyState>
+          </Card>
+        )}
+
+        {/* Dashboard metrics - only show if there are stores */}
+        {metrics.totalStores > 0 && (
+          <>
+            {/* Hero Dashboard Cards */}
+            <Layout>
+              <Layout.Section>
+                <InlineStack gap="400">
+                  <Card>
+                    <BlockStack gap="200">
+                      <InlineStack align="space-between">
+                        <Text variant="headingMd" as="h2">
+                          Total Stores
+                        </Text>
+                        <Icon source={LocationIcon} color="base" />
+                      </InlineStack>
+                      <Text variant="heading2xl" as="p" color="success">
+                        {metrics.totalStores}
+                      </Text>
+                      <Text variant="bodyMd" color="subdued">
+                        {metrics.recentStoresCount > 0
+                          ? `+${metrics.recentStoresCount} added this week`
+                          : "No new stores this week"}
+                      </Text>
+                    </BlockStack>
+                  </Card>
+
+                  <Card>
+                    <BlockStack gap="200">
+                      <InlineStack align="space-between">
+                        <Text variant="headingMd" as="h2">
+                          Store Coverage
+                        </Text>
+                        <Badge status="info">{metrics.uniqueStatesCount}</Badge>
+                      </InlineStack>
+                      <Text variant="heading2xl" as="p">
+                        {metrics.uniqueStatesCount}
+                      </Text>
+                      <Text variant="bodyMd" color="subdued">
+                        {metrics.uniqueStatesCount === 1
+                          ? "state covered"
+                          : "states covered"}
+                      </Text>
+                    </BlockStack>
+                  </Card>
+
+                  <Card>
+                    <BlockStack gap="200">
+                      <InlineStack align="space-between">
+                        <Text variant="headingMd" as="h2">
+                          Geocoded
+                        </Text>
+                        <Badge
+                          status={
+                            metrics.geocodedPercent === 100
+                              ? "success"
+                              : "warning"
+                          }
+                        >
+                          {metrics.geocodedPercent}%
+                        </Badge>
+                      </InlineStack>
+                      <Text variant="heading2xl" as="p">
+                        {metrics.geocodedPercent}%
+                      </Text>
+                      <Text variant="bodyMd" color="subdued">
+                        stores have coordinates
+                      </Text>
+                      {metrics.geocodedPercent < 100 && (
+                        <ProgressBar
+                          progress={metrics.geocodedPercent}
+                          size="small"
+                        />
+                      )}
+                    </BlockStack>
+                  </Card>
                 </InlineStack>
-                {fetcher.data?.product && (
-                  <>
-                    <Text as="h3" variant="headingMd">
-                      {" "}
-                      productCreate mutation
-                    </Text>
-                    <Box
-                      padding="400"
-                      background="bg-surface-active"
-                      borderWidth="025"
-                      borderRadius="200"
-                      borderColor="border"
-                      overflowX="scroll"
-                    >
-                      <pre style={{ margin: 0 }}>
-                        <code>
-                          {JSON.stringify(fetcher.data.product, null, 2)}
-                        </code>
-                      </pre>
-                    </Box>
-                    <Text as="h3" variant="headingMd">
-                      {" "}
-                      productVariantsBulkUpdate mutation
-                    </Text>
-                    <Box
-                      padding="400"
-                      background="bg-surface-active"
-                      borderWidth="025"
-                      borderRadius="200"
-                      borderColor="border"
-                      overflowX="scroll"
-                    >
-                      <pre style={{ margin: 0 }}>
-                        <code>
-                          {JSON.stringify(fetcher.data.variant, null, 2)}
-                        </code>
-                      </pre>
-                    </Box>
-                  </>
-                )}
+              </Layout.Section>
+            </Layout>
+
+            {/* Quick Actions */}
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingMd" as="h2">
+                  Quick Actions
+                </Text>
+                <InlineStack gap="200">
+                  <Button
+                    primary
+                    icon={PlusIcon}
+                    onClick={() => navigate("/app/add-store")}
+                  >
+                    Add New Store
+                  </Button>
+                  <Button
+                    icon={ListBulletedIcon}
+                    onClick={() => navigate("/app/view-stores")}
+                  >
+                    Manage Stores
+                  </Button>
+                  <Button
+                    icon={ImportIcon}
+                    onClick={() => navigate("/app/view-stores")}
+                  >
+                    Import CSV
+                  </Button>
+                  <Button icon={ExportIcon} onClick={handleExportStores}>
+                    Export Data
+                  </Button>
+                </InlineStack>
               </BlockStack>
             </Card>
-          </Layout.Section>
-          <Layout.Section variant="oneThird">
-            <BlockStack gap="500">
+
+            {/* Store Health Check */}
+            {(metrics.missingCoordinates > 0 || metrics.missingPhone > 0) && (
               <Card>
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    App template specs
-                  </Text>
-                  <BlockStack gap="200">
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        Framework
-                      </Text>
-                      <Link
-                        url="https://remix.run"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        Remix
-                      </Link>
-                    </InlineStack>
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        Database
-                      </Text>
-                      <Link
-                        url="https://www.prisma.io/"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        Prisma
-                      </Link>
-                    </InlineStack>
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        Interface
-                      </Text>
-                      <span>
-                        <Link
-                          url="https://polaris.shopify.com"
-                          target="_blank"
-                          removeUnderline
-                        >
-                          Polaris
-                        </Link>
-                        {", "}
-                        <Link
-                          url="https://shopify.dev/docs/apps/tools/app-bridge"
-                          target="_blank"
-                          removeUnderline
-                        >
-                          App Bridge
-                        </Link>
-                      </span>
-                    </InlineStack>
-                    <InlineStack align="space-between">
-                      <Text as="span" variant="bodyMd">
-                        API
-                      </Text>
-                      <Link
-                        url="https://shopify.dev/docs/api/admin-graphql"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        GraphQL API
-                      </Link>
-                    </InlineStack>
-                  </BlockStack>
-                </BlockStack>
-              </Card>
-              <Card>
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    Next steps
+                <BlockStack gap="400">
+                  <Text variant="headingMd" as="h2">
+                    Store Health
                   </Text>
                   <List>
-                    <List.Item>
-                      Build an{" "}
-                      <Link
-                        url="https://shopify.dev/docs/apps/getting-started/build-app-example"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        {" "}
-                        example app
-                      </Link>{" "}
-                      to get started
-                    </List.Item>
-                    <List.Item>
-                      Explore Shopify’s API with{" "}
-                      <Link
-                        url="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-                        target="_blank"
-                        removeUnderline
-                      >
-                        GraphiQL
-                      </Link>
-                    </List.Item>
+                    {metrics.missingCoordinates > 0 && (
+                      <List.Item>
+                        <InlineStack gap="200" align="space-between">
+                          <InlineStack gap="200">
+                            <Icon source={AlertCircleIcon} color="warning" />
+                            <Text>
+                              {metrics.missingCoordinates} stores need geocoding
+                            </Text>
+                          </InlineStack>
+                          <Button size="micro" onClick={handleFixGeocoding}>
+                            Fix Now
+                          </Button>
+                        </InlineStack>
+                      </List.Item>
+                    )}
+                    {metrics.missingPhone > 0 && (
+                      <List.Item>
+                        <InlineStack gap="200" align="space-between">
+                          <InlineStack gap="200">
+                            <Icon source={PhoneIcon} color="base" />
+                            <Text>
+                              {metrics.missingPhone} stores missing phone
+                              numbers
+                            </Text>
+                          </InlineStack>
+                          <Button
+                            size="micro"
+                            onClick={() => navigate("/app/view-stores")}
+                          >
+                            Review
+                          </Button>
+                        </InlineStack>
+                      </List.Item>
+                    )}
                   </List>
                 </BlockStack>
               </Card>
-            </BlockStack>
-          </Layout.Section>
-        </Layout>
+            )}
+
+            {/* Recent Activity */}
+            <Layout>
+              <Layout.Section>
+                <Card>
+                  <BlockStack gap="400">
+                    <InlineStack align="space-between">
+                      <Text variant="headingMd" as="h2">
+                        Recent Activity
+                      </Text>
+                      <Link url="/app/view-stores">View all stores</Link>
+                    </InlineStack>
+                    {stores.length > 0 ? (
+                      <List>
+                        {stores.slice(0, 5).map((store) => (
+                          <List.Item key={store.id}>
+                            <InlineStack gap="200" align="space-between">
+                              <BlockStack gap="100">
+                                <Text variant="bodyMd" fontWeight="medium">
+                                  {store.name}
+                                </Text>
+                                <Text variant="bodyMd" color="subdued">
+                                  {store.address}, {store.city}, {store.state}
+                                </Text>
+                              </BlockStack>
+                              <Text variant="bodyMd" color="subdued">
+                                {formatDate(store.createdAt)}
+                              </Text>
+                            </InlineStack>
+                          </List.Item>
+                        ))}
+                      </List>
+                    ) : (
+                      <Text variant="bodyMd" color="subdued">
+                        No recent activity
+                      </Text>
+                    )}
+                  </BlockStack>
+                </Card>
+              </Layout.Section>
+
+              {/* Store Overview Sidebar */}
+              <Layout.Section variant="oneThird">
+                <Card>
+                  <BlockStack gap="400">
+                    <Text variant="headingMd" as="h2">
+                      Store Overview
+                    </Text>
+                    <Box
+                      padding="400"
+                      background="bg-surface-secondary"
+                      borderRadius="200"
+                      borderWidth="025"
+                      borderColor="border"
+                    >
+                      <BlockStack gap="200">
+                        <InlineStack align="space-between">
+                          <Text variant="bodyMd">Total Stores</Text>
+                          <Badge>{metrics.totalStores}</Badge>
+                        </InlineStack>
+                        <InlineStack align="space-between">
+                          <Text variant="bodyMd">With Phone</Text>
+                          <Badge status="info">{metrics.storesWithPhone}</Badge>
+                        </InlineStack>
+                        <InlineStack align="space-between">
+                          <Text variant="bodyMd">With Website</Text>
+                          <Badge status="info">{metrics.storesWithLink}</Badge>
+                        </InlineStack>
+                        <InlineStack align="space-between">
+                          <Text variant="bodyMd">States Covered</Text>
+                          <Badge status="success">
+                            {metrics.uniqueStatesCount}
+                          </Badge>
+                        </InlineStack>
+                      </BlockStack>
+                    </Box>
+                    <Button
+                      fullWidth
+                      onClick={() => navigate("/app/view-stores")}
+                    >
+                      View All Stores
+                    </Button>
+                  </BlockStack>
+                </Card>
+              </Layout.Section>
+            </Layout>
+          </>
+        )}
       </BlockStack>
     </Page>
   );
