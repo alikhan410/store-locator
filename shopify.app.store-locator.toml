@@ -3,7 +3,7 @@
 client_id = "fc0568978e5a7a64c4020dc35c935330"
 name = "store-locator"
 handle = "store-locator-176"
-application_url = "https://registrar-search-nodes-inclusive.trycloudflare.com"
+application_url = "https://notes-powerpoint-im-technician.trycloudflare.com"
 embedded = true
 
 [webhooks]
@@ -11,10 +11,10 @@ api_version = "2025-07"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_app_proxy,write_products"
+scopes = "write_app_proxy,write_products,read_themes,write_themes"
 
 [auth]
-redirect_urls = ["https://registrar-search-nodes-inclusive.trycloudflare.com/auth/callback", "https://registrar-search-nodes-inclusive.trycloudflare.com/auth/shopify/callback", "https://registrar-search-nodes-inclusive.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://notes-powerpoint-im-technician.trycloudflare.com/auth/callback", "https://notes-powerpoint-im-technician.trycloudflare.com/auth/shopify/callback", "https://notes-powerpoint-im-technician.trycloudflare.com/api/auth/callback"]
 
 [pos]
 embedded = false
