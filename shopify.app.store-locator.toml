@@ -3,7 +3,7 @@
 client_id = "fc0568978e5a7a64c4020dc35c935330"
 name = "store-locator"
 handle = "store-locator-176"
-application_url = "https://notes-powerpoint-im-technician.trycloudflare.com"
+application_url = "https://store-locator-one.vercel.app"
 embedded = true
 
 [webhooks]
@@ -14,7 +14,12 @@ api_version = "2025-07"
 scopes = "write_app_proxy,write_products,read_themes,write_themes"
 
 [auth]
-redirect_urls = ["https://notes-powerpoint-im-technician.trycloudflare.com/auth/callback", "https://notes-powerpoint-im-technician.trycloudflare.com/auth/shopify/callback", "https://notes-powerpoint-im-technician.trycloudflare.com/api/auth/callback"]
+redirect_urls = ["https://store-locator-one.vercel.app/auth/callback", "https://store-locator-one.vercel.app/auth/shopify/callback", "https://store-locator-one.vercel.app/api/auth/callback"]
+
+[app_proxy]
+url = "https://store-locator-one.vercel.app/app-proxy/store-locator"
+subpath = "store-locator"
+prefix = "apps"
 
 [pos]
 embedded = false
