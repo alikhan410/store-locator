@@ -174,7 +174,8 @@
 }
 
 /* CONTAINER FOR SHOWING LEAFLET MAP */
-
-.store-locator-map {
-  z-index: 0;
-}
+/* .store-locator-map {
+  position: relative;
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+} */

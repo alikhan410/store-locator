@@ -6,9 +6,14 @@
 
 <script src="{{ 'haversineDistance.js' | asset_url }}" defer></script>
 <script
-  src="https://maps.googleapis.com/maps/api/js?key={{ block.settings.GOOGLE_PUBLIC_API_KEY }}&libraries=places"
+  src="https://maps.googleapis.com/maps/api/js?key={{ block.settings.GOOGLE_PUBLIC_API_KEY }}&libraries=places&callback=initMap"
+  async
   defer
 ></script>
+<script>
+  const radiusUnit = '{{ block.settings.radius_unit }}';
+</script>
+
 <div class="store-locator-wrapper">
   {% if block.settings.show_heading %}
     <h2
@@ -38,11 +43,11 @@
     </div>
 
     <select id="radius">
-      <option value="5">5 km</option>
-      <option value="10">10 km</option>
-      <option value="25">25 km</option>
-      <option value="50">50 km</option>
-      <option value="100">100 km</option>
+      <option value="5">5 {{ block.settings.radius_unit }}</option>
+      <option value="10">10 {{ block.settings.radius_unit }}</option>
+      <option value="25">25 {{ block.settings.radius_unit }}</option>
+      <option value="50">50 {{ block.settings.radius_unit }}</option>
+      <option value="100">100 {{ block.settings.radius_unit }}</option>
     </select>
 
     <button
@@ -154,7 +159,7 @@
               ? `<div class="store-link"><a href="${store.link}" target="_blank" rel="noopener noreferrer">Store Website</a></div>`
               : ''
           }
-          <div class="store-distance">${store.distance} km away</div>
+          <div class="store-distance">${store.distance} ${radius_unit} away</div>
         </div>
       `;
     });
@@ -177,7 +182,17 @@
     map.fitBounds(boundsObj);
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  function initMap() {
+    const mapEl = document.getElementById('store-map');
+    map = new google.maps.Map(mapEl, {
+      center: { lat: 37.0902, lng: -95.7129 },
+      zoom: 4,
+    });
+
+    setupSearchHandlers();
+  }
+
+  function setupSearchHandlers() {
     locationInput = document.getElementById('user-location');
     resultsEl = document.getElementById('search-results');
     searchBtn = document.getElementById('search-btn');
@@ -283,9 +298,10 @@
           resultsEl.innerHTML = '<p>Something went wrong. Try again later.</p>';
         });
     });
-  });
+  }
 </script>
 
+{% comment %} https://shopify.dev/docs/storefronts/themes/architecture/settings/input-settings {% endcomment %}
 {% schema %}
 {
   "name": "Store Locator",
@@ -297,6 +313,7 @@
       "label": "Google Public API Key",
       "default": "Your api key here"
     },
+    //SEARCH bUTTON
     {
       "type": "header",
       "content": "Search Button"
@@ -329,6 +346,7 @@
       "label": "Border radius",
       "default": 8
     },
+    //LOCATION BUTTON
     {
       "type": "header",
       "content": "Location Button"
@@ -367,6 +385,7 @@
       "label": "Button text",
       "default": "Use My Location"
     },
+    //SEARCH BAR
     {
       "type": "header",
       "content": "Search Bar"
@@ -377,6 +396,28 @@
       "label": "Search Bar Text",
       "default": "Your location"
     },
+    //RADIUS BAR
+    {
+      "type": "header",
+      "content": "Radius"
+    },
+    {
+      "type": "select",
+      "id": "radius_unit",
+      "label": "Radius Unit",
+      "options": [
+        {
+          "value": "miles",
+          "label": "miles"
+        },
+        {
+          "value": "km",
+          "label": "km"
+        }
+      ],
+      "default": "miles"
+    },
+    //MAIN HEADING
     {
       "type": "header",
       "content": "Heading"
@@ -413,6 +454,7 @@
       "label": "Heading",
       "default": "Store Locator"
     },
+    //CONTENT
     {
       "type": "header",
       "content": "Content"
