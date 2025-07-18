@@ -63,13 +63,13 @@ export const action = async ({ request }) => {
         });
       } else {
         sanitizedStores.push({
-          name: store.name.trim(),
-          link: store.link.trim(),
-          address: store.address.trim(),
+          name: store.name?.trim() || "",
+          link: store.link?.trim() || "",
+          address: store.address?.trim() || "",
           address2: store.address2?.trim() || null,
-          city: store.city.trim(),
-          state: store.state.trim(),
-          zip: store.zip.trim(),
+          city: store.city?.trim() || "",
+          state: store.state?.trim() || "",
+          zip: store.zip?.trim() || "",
           country: store.country?.trim() || "United States",
           phone: store.phone?.trim() || null,
           lat:
