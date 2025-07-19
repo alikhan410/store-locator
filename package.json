@@ -16,7 +16,12 @@
     "shopify": "shopify",
     "prisma": "prisma",
     "graphql-codegen": "graphql-codegen",
-    "vite": "vite"
+    "vite": "vite",
+    "env:dev": "./scripts/switch-env.sh development",
+    "env:prod": "./scripts/switch-env.sh production",
+    "env:status": "./scripts/switch-env.sh status",
+    "env:validate": "./scripts/switch-env.sh validate",
+    "shopify:setup": "./scripts/setup-shopify-configs.sh"
   },
   "type": "module",
   "engines": {
