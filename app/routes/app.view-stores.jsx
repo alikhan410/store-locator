@@ -20,10 +20,16 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { states } from "../helper/states";
 import { exportAllStoresToCSV } from "../helper/exportAction";
 import StoreCSVImport from "../components/storeCSVImport";
+import { authenticate } from "../shopify.server";
 
 export const loader = async () => {
   const prisma = (await import("../db.server")).default;
-  const stores = await prisma.store.findMany();
+  const { session } = await authenticate.admin(request);
+  const stores = await prisma.store.findMany({
+    where: {
+      shop: session.shop,
+    },
+  });
 
   return { stores };
 };

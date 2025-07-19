@@ -21,6 +21,7 @@ import { Form, useActionData, useLoaderData } from "@remix-run/react";
 import { stateOptions } from "../helper/options";
 import { loadGoogleMaps } from "../helper/loadGoogleMaps";
 import { cleanupGoogleMapsInstances } from "../helper/googleMapsLoader";
+import { authenticate } from "../shopify.server";
 
 const formatPhone = (value) => {
   const phone = parsePhoneNumberFromString(value, "US");
@@ -35,6 +36,8 @@ export const loader = () => {
 
 export const action = async ({ request }) => {
   const prisma = (await import("../db.server")).default;
+  const { session } = await authenticate.admin(request);
+
   const formData = await request.formData();
   const data = Object.fromEntries(formData);
 
@@ -45,6 +48,7 @@ export const action = async ({ request }) => {
   const newStore = await prisma.store.create({
     data: {
       name: data.name,
+      shop: session.shop,
       link: data.link || null,
       address: data.address,
       address2: data.address2,
