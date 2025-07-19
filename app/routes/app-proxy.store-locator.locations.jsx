@@ -1,20 +1,18 @@
 import prisma from "../db.server";
 import { getBoundingBox, haversineDistance } from "../helper/geoUtils";
-import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
   try {
-    // const { session } = await authenticate.admin(request);
     const url = new URL(request.url);
     const lat = parseFloat(url.searchParams.get("lat") || "0");
     const lng = parseFloat(url.searchParams.get("lng") || "0");
     const radiusKm = parseFloat(url.searchParams.get("radius") || "50");
+    const shop = url.searchParams.get("shop");
     console.log("radius is: ", radiusKm, " km");
 
     let nearbyCandidates;
 
     if (radiusKm >= 20) {
-      // Use bounding box for performance on large radius
       const paddingFactor = 1.1;
       const { minLat, maxLat, minLng, maxLng } = getBoundingBox(
         lat,
@@ -24,16 +22,15 @@ export const loader = async ({ request }) => {
 
       nearbyCandidates = await prisma.store.findMany({
         where: {
-          // shop: session.shop,
+          shop: shop,
           lat: { not: null, gte: minLat, lte: maxLat },
           lng: { not: null, gte: minLng, lte: maxLng },
         },
       });
     } else {
-      // For small radius, fetch all with lat/lng
       nearbyCandidates = await prisma.store.findMany({
         where: {
-          // shop: session.shop,
+          shop: shop,
           lat: { not: null },
           lng: { not: null },
         },
