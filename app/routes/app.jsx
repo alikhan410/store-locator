@@ -27,6 +27,8 @@ export default function App() {
         <Link to="/app/map">🗺️ Map</Link>
         <Link to="/app/gdpr">🔒 Privacy & GDPR</Link>
         <Link to="/app/billing">Billing</Link>
+        <Link to="/privacy-policy" target="_blank">📄 Privacy Policy</Link>
+        <Link to="/terms-of-service" target="_blank">📋 Terms of Service</Link>
       </NavMenu>
       <Outlet />
     </AppProvider>

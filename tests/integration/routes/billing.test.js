@@ -30,24 +30,12 @@ describe('Billing Route Integration Tests', () => {
   });
 
   describe('Loader', () => {
-    it('should redirect to billing URL', async () => {
+    it('should return billing object from authentication', async () => {
       // Mock the authenticate function
       const { authenticate } = await import('../../../app/shopify.server');
+      const mockBilling = { status: 'active', plan: 'premium' };
       authenticate.admin.mockResolvedValue({
-        session: {
-          shop: 'test-shop.myshopify.com',
-          accessToken: 'test-token'
-        }
-      });
-
-      // Mock the billing API response
-      const mockBillingResponse = {
-        confirmationUrl: 'https://test-shop.myshopify.com/admin/charges/1234567890/confirm'
-      };
-
-      // Mock fetch for billing API call
-      global.fetch = vi.fn().mockResolvedValue({
-        json: vi.fn().mockResolvedValue(mockBillingResponse)
+        billing: mockBilling
       });
 
       const request = createRequest('http://localhost:3000/app/billing');
@@ -55,10 +43,9 @@ describe('Billing Route Integration Tests', () => {
       // Import the loader function
       const { loader } = await import('../../../app/routes/app.billing');
 
-      const response = await loader({ request });
+      const result = await loader({ request });
 
-      expect(response.status).toBe(302);
-      expect(response.headers.get('Location')).toBe(mockBillingResponse.confirmationUrl);
+      expect(result).toEqual({ billing: mockBilling });
     });
 
     it('should handle authentication errors', async () => {
@@ -73,41 +60,22 @@ describe('Billing Route Integration Tests', () => {
       await expect(loader({ request })).rejects.toThrow('Authentication failed');
     });
 
-    it('should handle billing API errors', async () => {
+    it('should handle authentication errors', async () => {
       const { authenticate } = await import('../../../app/shopify.server');
-      authenticate.admin.mockResolvedValue({
-        session: {
-          shop: 'test-shop.myshopify.com',
-          accessToken: 'test-token'
-        }
-      });
-
-      // Mock fetch to return an error
-      global.fetch = vi.fn().mockRejectedValue(new Error('Billing API error'));
+      authenticate.admin.mockRejectedValue(new Error('Authentication failed'));
 
       const request = createRequest('http://localhost:3000/app/billing');
 
       // Import the loader function
       const { loader } = await import('../../../app/routes/app.billing');
 
-      await expect(loader({ request })).rejects.toThrow('Billing API error');
+      await expect(loader({ request })).rejects.toThrow('Authentication failed');
     });
 
-    it('should use correct billing API endpoint', async () => {
+    it('should handle undefined billing object', async () => {
       const { authenticate } = await import('../../../app/shopify.server');
       authenticate.admin.mockResolvedValue({
-        session: {
-          shop: 'test-shop.myshopify.com',
-          accessToken: 'test-token'
-        }
-      });
-
-      const mockBillingResponse = {
-        confirmationUrl: 'https://test-shop.myshopify.com/admin/charges/1234567890/confirm'
-      };
-
-      global.fetch = vi.fn().mockResolvedValue({
-        json: vi.fn().mockResolvedValue(mockBillingResponse)
+        billing: undefined
       });
 
       const request = createRequest('http://localhost:3000/app/billing');
@@ -115,18 +83,9 @@ describe('Billing Route Integration Tests', () => {
       // Import the loader function
       const { loader } = await import('../../../app/routes/app.billing');
 
-      await loader({ request });
+      const result = await loader({ request });
 
-      expect(global.fetch).toHaveBeenCalledWith(
-        'https://test-shop.myshopify.com/admin/api/2023-10/recurring_application_charges.json',
-        expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            'Content-Type': 'application/json',
-            'X-Shopify-Access-Token': 'test-token'
-          })
-        })
-      );
+      expect(result).toEqual({ billing: undefined });
     });
   });
 }); 

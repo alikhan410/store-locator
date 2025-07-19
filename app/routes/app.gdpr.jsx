@@ -176,6 +176,34 @@ export default function GDPRPage() {
             <Card>
               <BlockStack gap="400">
                 <Text variant="headingMd" as="h2">
+                  Privacy Policy & Legal
+                </Text>
+                <Text variant="bodyMd" as="p">
+                  We are committed to protecting your privacy and ensuring compliance with data protection regulations.
+                </Text>
+                <InlineStack gap="200">
+                  <Button
+                    url="https://mbernier.com/privacy"
+                    target="_blank"
+                    external
+                  >
+                    View Privacy Policy
+                  </Button>
+                  <Button
+                    url="mailto:mkbernier@gmail.com?subject=Privacy%20Policy%20Question"
+                    external
+                  >
+                    Contact Us
+                  </Button>
+                </InlineStack>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingMd" as="h2">
                   Export Your Data
                 </Text>
                 <Text variant="bodyMd" as="p">
