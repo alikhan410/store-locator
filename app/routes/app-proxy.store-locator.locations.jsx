@@ -7,6 +7,7 @@ export const loader = async ({ request }) => {
     const lat = parseFloat(url.searchParams.get("lat") || "0");
     const lng = parseFloat(url.searchParams.get("lng") || "0");
     const radiusKm = parseFloat(url.searchParams.get("radius") || "50");
+    console.log("radius is: ", radiusKm, " km");
 
     const { minLat, maxLat, minLng, maxLng } = getBoundingBox(
       lat,
