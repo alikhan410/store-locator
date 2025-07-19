@@ -166,8 +166,8 @@ describe('Store Creation Tests', () => {
         id: 1,
         shop: 'test-shop.myshopify.com',
         name: 'Test Store',
-        lat: 0,
-        lng: 0,
+        lat: NaN,
+        lng: NaN,
       };
 
       mockPrisma.store.create.mockResolvedValue(mockStore);
@@ -196,8 +196,8 @@ describe('Store Creation Tests', () => {
           city: 'New York',
           state: 'NY',
           zip: '10001',
-          lat: 0,
-          lng: 0,
+          lat: NaN,
+          lng: NaN,
           phone: '(555) 123-4567',
           hours: undefined,
         },

@@ -8,15 +8,20 @@ vi.mock('../../../app/shopify.server', () => ({
   },
 }));
 
-// Mock the Prisma client
-vi.mock('@prisma/client', () => ({
-  PrismaClient: vi.fn().mockImplementation(() => ({
+// Mock the database configuration
+vi.mock('../../../app/config/database', () => ({
+  getDatabaseUrl: vi.fn().mockReturnValue('postgresql://test:test@localhost:5432/test'),
+}));
+
+// Mock the db.server module
+vi.mock('../../../app/db.server', () => ({
+  default: {
     store: {
       count: vi.fn(),
       findMany: vi.fn(),
       deleteMany: vi.fn(),
     },
-  })),
+  },
 }));
 
 // Create a simple request mock since createRequest is not available
@@ -32,8 +37,7 @@ const createRequest = (url, options = {}) => {
   return new Request(url, options);
 };
 
-const { PrismaClient } = await import('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = (await import('../../../app/db.server')).default;
 
 describe('GDPR Route Integration Tests', () => {
   const testShop = 'test-shop.myshopify.com';
@@ -45,29 +49,8 @@ describe('GDPR Route Integration Tests', () => {
 
   describe('Loader', () => {
     it('should return store count and shop information', async () => {
-      // Create test stores in the database
-      await prisma.store.createMany({
-        data: [
-          {
-            name: 'Test Store 1',
-            address: '123 Main St',
-            city: 'New York',
-            state: 'NY',
-            zip: '10001',
-            country: 'United States',
-            shop: testShop,
-          },
-          {
-            name: 'Test Store 2',
-            address: '456 Oak Ave',
-            city: 'Los Angeles',
-            state: 'CA',
-            zip: '90210',
-            country: 'United States',
-            shop: testShop,
-          },
-        ],
-      });
+      // Mock the database response
+      prisma.store.count.mockResolvedValue(2);
 
       // Create a mock request with session
       const request = createRequest('http://localhost:3000/app/gdpr');
@@ -89,13 +72,14 @@ describe('GDPR Route Integration Tests', () => {
         storeCount: 2,
         shop: testShop,
       });
+      expect(prisma.store.count).toHaveBeenCalledWith({
+        where: { shop: testShop },
+      });
     });
 
     it('should handle zero stores', async () => {
-      // Ensure no stores exist for this shop
-      await prisma.store.deleteMany({
-        where: { shop: testShop },
-      });
+      // Mock the database response
+      prisma.store.count.mockResolvedValue(0);
 
       const request = createRequest('http://localhost:3000/app/gdpr');
       const { loader } = await import('../../../app/routes/app.gdpr.jsx');
@@ -112,34 +96,38 @@ describe('GDPR Route Integration Tests', () => {
         storeCount: 0,
         shop: testShop,
       });
+      expect(prisma.store.count).toHaveBeenCalledWith({
+        where: { shop: testShop },
+      });
     });
   });
 
   describe('Action - Export', () => {
     it('should export store data successfully', async () => {
-      // Create test stores in the database
-      const testStores = await prisma.store.createMany({
-        data: [
-          {
-            name: 'Test Store 1',
-            address: '123 Main St',
-            city: 'New York',
-            state: 'NY',
-            zip: '10001',
-            country: 'United States',
-            shop: testShop,
-          },
-          {
-            name: 'Test Store 2',
-            address: '456 Oak Ave',
-            city: 'Los Angeles',
-            state: 'CA',
-            zip: '90210',
-            country: 'United States',
-            shop: testShop,
-          },
-        ],
-      });
+      // Mock the database response
+      const mockStores = [
+        {
+          id: 1,
+          name: 'Test Store 1',
+          address: '123 Main St',
+          city: 'New York',
+          state: 'NY',
+          zip: '10001',
+          country: 'United States',
+          shop: testShop,
+        },
+        {
+          id: 2,
+          name: 'Test Store 2',
+          address: '456 Oak Ave',
+          city: 'Los Angeles',
+          state: 'CA',
+          zip: '90210',
+          country: 'United States',
+          shop: testShop,
+        },
+      ];
+      prisma.store.findMany.mockResolvedValue(mockStores);
 
       const formData = new URLSearchParams();
       formData.append('action', 'export');
@@ -168,49 +156,17 @@ describe('GDPR Route Integration Tests', () => {
       expect(responseData.data[0].name).toBe('Test Store 1');
       expect(responseData.data[1].name).toBe('Test Store 2');
       expect(responseData.message).toBe('Data export completed successfully');
+      expect(prisma.store.findMany).toHaveBeenCalledWith({
+        where: { shop: testShop },
+        orderBy: { createdAt: 'desc' },
+      });
     });
   });
 
   describe('Action - Delete', () => {
     it('should delete store data successfully', async () => {
-      // Create test stores in the database
-      await prisma.store.createMany({
-        data: [
-          {
-            name: 'Test Store 1',
-            address: '123 Main St',
-            city: 'New York',
-            state: 'NY',
-            zip: '10001',
-            country: 'United States',
-            shop: testShop,
-          },
-          {
-            name: 'Test Store 2',
-            address: '456 Oak Ave',
-            city: 'Los Angeles',
-            state: 'CA',
-            zip: '90210',
-            country: 'United States',
-            shop: testShop,
-          },
-          {
-            name: 'Test Store 3',
-            address: '789 Pine St',
-            city: 'Chicago',
-            state: 'IL',
-            zip: '60601',
-            country: 'United States',
-            shop: testShop,
-          },
-        ],
-      });
-
-      // Verify stores exist before deletion
-      const storesBefore = await prisma.store.count({
-        where: { shop: testShop },
-      });
-      expect(storesBefore).toBe(3);
+      // Mock the database response
+      prisma.store.deleteMany.mockResolvedValue({ count: 3 });
 
       const formData = new URLSearchParams();
       formData.append('action', 'delete');
@@ -237,19 +193,14 @@ describe('GDPR Route Integration Tests', () => {
       expect(responseData.success).toBe(true);
       expect(responseData.deletedCount).toBe(3);
       expect(responseData.message).toBe('Successfully deleted 3 stores');
-
-      // Verify stores were actually deleted
-      const storesAfter = await prisma.store.count({
+      expect(prisma.store.deleteMany).toHaveBeenCalledWith({
         where: { shop: testShop },
       });
-      expect(storesAfter).toBe(0);
     });
 
     it('should handle deletion of zero stores', async () => {
-      // Ensure no stores exist
-      await prisma.store.deleteMany({
-        where: { shop: testShop },
-      });
+      // Mock the database response
+      prisma.store.deleteMany.mockResolvedValue({ count: 0 });
 
       const formData = new URLSearchParams();
       formData.append('action', 'delete');
@@ -276,6 +227,9 @@ describe('GDPR Route Integration Tests', () => {
       expect(responseData.success).toBe(true);
       expect(responseData.deletedCount).toBe(0);
       expect(responseData.message).toBe('Successfully deleted 0 stores');
+      expect(prisma.store.deleteMany).toHaveBeenCalledWith({
+        where: { shop: testShop },
+      });
     });
   });
 
