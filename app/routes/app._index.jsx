@@ -31,12 +31,13 @@ import {
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
 
   const prisma = (await import("../db.server")).default;
 
   // Get all stores with metrics
   const stores = await prisma.store.findMany({
+    where: { shop: session.shop },
     orderBy: { createdAt: "desc" },
   });
 
