@@ -1,6 +1,26 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createRequest } from '@remix-run/node';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { PrismaClient } from '@prisma/client';
+
+// Mock the shopify.server module
+vi.mock('../../../app/shopify.server', () => ({
+  default: {},
+  authenticate: {
+    admin: vi.fn(),
+  },
+}));
+
+// Create a simple request mock since createRequest is not available
+const createRequest = (url, options = {}) => {
+  // For FormData, don't set Content-Type - let the browser handle it
+  if (options.body && options.body instanceof FormData) {
+    const { body, ...otherOptions } = options;
+    return new Request(url, {
+      ...otherOptions,
+      body,
+    });
+  }
+  return new Request(url, options);
+};
 
 const prisma = new PrismaClient();
 
@@ -53,27 +73,20 @@ describe('GDPR Route Integration Tests', () => {
       // Import the loader function
       const { loader } = await import('../../../app/routes/app.gdpr.jsx');
 
-      // Mock the authenticate function to return our test shop
-      const originalAuthenticate = (await import('../../../app/shopify.server')).authenticate;
-      vi.spyOn(await import('../../../app/shopify.server'), 'authenticate').mockImplementation({
-        admin: vi.fn().mockResolvedValue({
-          session: { shop: testShop },
-        }),
+      // Set up the mock for this test
+      const { authenticate } = await import('../../../app/shopify.server');
+      authenticate.admin.mockResolvedValue({
+        session: { shop: testShop },
       });
 
-      try {
-        // Call the loader
-        const result = await loader({ request });
+      // Call the loader
+      const result = await loader({ request });
 
-        // Assertions
-        expect(result).toEqual({
-          storeCount: 2,
-          shop: testShop,
-        });
-      } finally {
-        // Restore original authenticate function
-        vi.restoreAllMocks();
-      }
+      // Assertions
+      expect(result).toEqual({
+        storeCount: 2,
+        shop: testShop,
+      });
     });
 
     it('should handle zero stores', async () => {
@@ -85,23 +98,18 @@ describe('GDPR Route Integration Tests', () => {
       const request = createRequest('http://localhost:3000/app/gdpr');
       const { loader } = await import('../../../app/routes/app.gdpr.jsx');
 
-      // Mock the authenticate function
-      vi.spyOn(await import('../../../app/shopify.server'), 'authenticate').mockImplementation({
-        admin: vi.fn().mockResolvedValue({
-          session: { shop: testShop },
-        }),
+      // Set up the mock for this test
+      const { authenticate } = await import('../../../app/shopify.server');
+      authenticate.admin.mockResolvedValue({
+        session: { shop: testShop },
       });
 
-      try {
-        const result = await loader({ request });
+      const result = await loader({ request });
 
-        expect(result).toEqual({
-          storeCount: 0,
-          shop: testShop,
-        });
-      } finally {
-        vi.restoreAllMocks();
-      }
+      expect(result).toEqual({
+        storeCount: 0,
+        shop: testShop,
+      });
     });
   });
 
@@ -131,35 +139,33 @@ describe('GDPR Route Integration Tests', () => {
         ],
       });
 
-      const formData = new FormData();
+      const formData = new URLSearchParams();
       formData.append('action', 'export');
 
       const request = createRequest('http://localhost:3000/app/gdpr', {
         method: 'POST',
         body: formData,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
       });
 
       const { action } = await import('../../../app/routes/app.gdpr.jsx');
 
-      // Mock the authenticate function
-      vi.spyOn(await import('../../../app/shopify.server'), 'authenticate').mockImplementation({
-        admin: vi.fn().mockResolvedValue({
-          session: { shop: testShop },
-        }),
+      // Set up the mock for this test
+      const { authenticate } = await import('../../../app/shopify.server');
+      authenticate.admin.mockResolvedValue({
+        session: { shop: testShop },
       });
 
-      try {
-        const result = await action({ request });
+      const result = await action({ request });
 
-        const responseData = await result.json();
-        expect(responseData.success).toBe(true);
-        expect(responseData.data).toHaveLength(2);
-        expect(responseData.data[0].name).toBe('Test Store 1');
-        expect(responseData.data[1].name).toBe('Test Store 2');
-        expect(responseData.message).toBe('Data export completed successfully');
-      } finally {
-        vi.restoreAllMocks();
-      }
+      const responseData = await result.json();
+      expect(responseData.success).toBe(true);
+      expect(responseData.data).toHaveLength(2);
+      expect(responseData.data[0].name).toBe('Test Store 1');
+      expect(responseData.data[1].name).toBe('Test Store 2');
+      expect(responseData.message).toBe('Data export completed successfully');
     });
   });
 
@@ -204,39 +210,37 @@ describe('GDPR Route Integration Tests', () => {
       });
       expect(storesBefore).toBe(3);
 
-      const formData = new FormData();
+      const formData = new URLSearchParams();
       formData.append('action', 'delete');
 
       const request = createRequest('http://localhost:3000/app/gdpr', {
         method: 'POST',
         body: formData,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
       });
 
       const { action } = await import('../../../app/routes/app.gdpr.jsx');
 
-      // Mock the authenticate function
-      vi.spyOn(await import('../../../app/shopify.server'), 'authenticate').mockImplementation({
-        admin: vi.fn().mockResolvedValue({
-          session: { shop: testShop },
-        }),
+      // Set up the mock for this test
+      const { authenticate } = await import('../../../app/shopify.server');
+      authenticate.admin.mockResolvedValue({
+        session: { shop: testShop },
       });
 
-      try {
-        const result = await action({ request });
+      const result = await action({ request });
 
-        const responseData = await result.json();
-        expect(responseData.success).toBe(true);
-        expect(responseData.deletedCount).toBe(3);
-        expect(responseData.message).toBe('Successfully deleted 3 stores');
+      const responseData = await result.json();
+      expect(responseData.success).toBe(true);
+      expect(responseData.deletedCount).toBe(3);
+      expect(responseData.message).toBe('Successfully deleted 3 stores');
 
-        // Verify stores were actually deleted
-        const storesAfter = await prisma.store.count({
-          where: { shop: testShop },
-        });
-        expect(storesAfter).toBe(0);
-      } finally {
-        vi.restoreAllMocks();
-      }
+      // Verify stores were actually deleted
+      const storesAfter = await prisma.store.count({
+        where: { shop: testShop },
+      });
+      expect(storesAfter).toBe(0);
     });
 
     it('should handle deletion of zero stores', async () => {
@@ -245,64 +249,60 @@ describe('GDPR Route Integration Tests', () => {
         where: { shop: testShop },
       });
 
-      const formData = new FormData();
+      const formData = new URLSearchParams();
       formData.append('action', 'delete');
 
       const request = createRequest('http://localhost:3000/app/gdpr', {
         method: 'POST',
         body: formData,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
       });
 
       const { action } = await import('../../../app/routes/app.gdpr.jsx');
 
-      // Mock the authenticate function
-      vi.spyOn(await import('../../../app/shopify.server'), 'authenticate').mockImplementation({
-        admin: vi.fn().mockResolvedValue({
-          session: { shop: testShop },
-        }),
+      // Set up the mock for this test
+      const { authenticate } = await import('../../../app/shopify.server');
+      authenticate.admin.mockResolvedValue({
+        session: { shop: testShop },
       });
 
-      try {
-        const result = await action({ request });
+      const result = await action({ request });
 
-        const responseData = await result.json();
-        expect(responseData.success).toBe(true);
-        expect(responseData.deletedCount).toBe(0);
-        expect(responseData.message).toBe('Successfully deleted 0 stores');
-      } finally {
-        vi.restoreAllMocks();
-      }
+      const responseData = await result.json();
+      expect(responseData.success).toBe(true);
+      expect(responseData.deletedCount).toBe(0);
+      expect(responseData.message).toBe('Successfully deleted 0 stores');
     });
   });
 
   describe('Action - Invalid Action', () => {
     it('should return error for invalid action', async () => {
-      const formData = new FormData();
+      const formData = new URLSearchParams();
       formData.append('action', 'invalid');
 
       const request = createRequest('http://localhost:3000/app/gdpr', {
         method: 'POST',
         body: formData,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
       });
 
       const { action } = await import('../../../app/routes/app.gdpr.jsx');
 
-      // Mock the authenticate function
-      vi.spyOn(await import('../../../app/shopify.server'), 'authenticate').mockImplementation({
-        admin: vi.fn().mockResolvedValue({
-          session: { shop: testShop },
-        }),
+      // Set up the mock for this test
+      const { authenticate } = await import('../../../app/shopify.server');
+      authenticate.admin.mockResolvedValue({
+        session: { shop: testShop },
       });
 
-      try {
-        const result = await action({ request });
+      const result = await action({ request });
 
-        const responseData = await result.json();
-        expect(responseData.error).toBe('Invalid action');
-        expect(result.status).toBe(400);
-      } finally {
-        vi.restoreAllMocks();
-      }
+      const responseData = await result.json();
+      expect(responseData.error).toBe('Invalid action');
+      expect(result.status).toBe(400);
     });
   });
 }); 
