@@ -136,8 +136,11 @@
         title: store.name,
       });
 
+      //Converting km into miles if the unit = miles
+      const convertedDistance = window.radiusUnit === 'miles' ? (store.distance / 1.60934).toFixed(2) : store.distance;
+
       const infoWindow = new google.maps.InfoWindow({
-        content: `<b>${store.name}</b><br>${store.address}<br>${store.distance} ${window.radiusUnit}`,
+        content: `<b>${store.name}</b><br>${store.address}<br>${convertedDistance} ${window.radiusUnit}`,
       });
 
       marker.addListener('click', () => {
@@ -146,9 +149,6 @@
 
       markers.push(marker);
       boundsObj.extend(marker.getPosition());
-
-      //Converting km into miles if the unit = miles
-      const convertedDistance = window.radiusUnit === 'miles' ? (store.distance / 1.60934).toFixed(2) : store.distance;
 
       resultsEl.innerHTML += `
         <div class="store-result" data-lat="${store.lat}" data-lng="${store.lng}">
