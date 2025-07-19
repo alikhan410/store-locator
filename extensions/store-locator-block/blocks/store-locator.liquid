@@ -11,7 +11,7 @@
   defer
 ></script>
 <script>
-  const radiusUnit = '{{ block.settings.radius_unit }}';
+  window.radiusUnit = '{{ block.settings.radius_unit }}';
 </script>
 
 <div class="store-locator-wrapper">
@@ -42,12 +42,13 @@
       >
     </div>
 
-    <select id="radius">
+    <select id="radius" data-unit="{{ block.settings.radius_unit }}">
       <option value="5">5 {{ block.settings.radius_unit }}</option>
       <option value="10">10 {{ block.settings.radius_unit }}</option>
       <option value="25">25 {{ block.settings.radius_unit }}</option>
       <option value="50">50 {{ block.settings.radius_unit }}</option>
       <option value="100">100 {{ block.settings.radius_unit }}</option>
+      <option value="1000">1000 {{ block.settings.radius_unit }}</option>
     </select>
 
     <button
@@ -112,7 +113,7 @@
       .join(' ');
   };
 
-  function updateMapAndList(userCoords, stores, radiusKm) {
+  function updateMapAndList(userCoords, stores) {
     console.log(stores);
     resultsEl.innerHTML = '';
 
@@ -136,7 +137,7 @@
       });
 
       const infoWindow = new google.maps.InfoWindow({
-        content: `<b>${store.name}</b><br>${store.address}<br>${store.distance} km`,
+        content: `<b>${store.name}</b><br>${store.address}<br>${store.distance} ${window.radiusUnit}`,
       });
 
       marker.addListener('click', () => {
@@ -145,6 +146,9 @@
 
       markers.push(marker);
       boundsObj.extend(marker.getPosition());
+
+      //Converting km into miles if the unit = miles
+      const convertedDistance = window.radiusUnit === 'miles' ? (store.distance / 1.60934).toFixed(2) : store.distance;
 
       resultsEl.innerHTML += `
         <div class="store-result" data-lat="${store.lat}" data-lng="${store.lng}">
@@ -159,7 +163,7 @@
               ? `<div class="store-link"><a href="${store.link}" target="_blank" rel="noopener noreferrer">Store Website</a></div>`
               : ''
           }
-          <div class="store-distance">${store.distance} ${radius_unit} away</div>
+          <div class="store-distance">${convertedDistance} ${window.radiusUnit} away</div>
         </div>
       `;
     });
@@ -220,7 +224,9 @@
         lng: place.geometry.location.lng(),
       };
 
-      const radiusKm = parseInt(radiusSelect.value, 10);
+      const radiusValue = parseInt(radiusSelect.value, 10);
+      const radiusKm = window.radiusUnit === 'miles' ? radiusValue * 1.60934 : radiusValue;
+      console.log('radiusValue is: ', radiusValue, ' and radiusKm is: ', radiusKm);
 
       resultsEl.innerHTML = `
         <div class="store-loading">
@@ -231,7 +237,7 @@
       fetch(`/apps/store-locator/locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}`)
         .then((res) => res.json())
         .then((data) => {
-          updateMapAndList(userCoords, data.stores, radiusKm);
+          updateMapAndList(userCoords, data.stores);
         });
     });
 
@@ -242,7 +248,10 @@
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
-          const radiusKm = parseInt(radiusSelect.value, 10);
+
+          const radiusValue = parseInt(radiusSelect.value, 10);
+          const radiusKm = window.radiusUnit === 'miles' ? radiusValue * 1.60934 : radiusValue;
+          console.log('radiusValue is: ', radiusValue, ' and radiusKm is: ', radiusKm);
 
           resultsEl.innerHTML = `
             <div class="store-loading">
@@ -253,7 +262,7 @@
           fetch(`/apps/store-locator/locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}`)
             .then((res) => res.json())
             .then((data) => {
-              updateMapAndList(userCoords, data.stores, radiusKm);
+              updateMapAndList(userCoords, data.stores);
             });
         },
         (error) => {
@@ -264,7 +273,10 @@
 
     searchBtn.addEventListener('click', () => {
       suggestionBox.innerHTML = '';
-      const radiusKm = parseInt(radiusSelect.value, 10);
+      const radiusValue = parseInt(radiusSelect.value, 10);
+      const radiusKm = window.radiusUnit === 'miles' ? radiusValue * 1.60934 : radiusValue;
+      console.log('radiusValue is: ', radiusValue, ' and radiusKm is: ', radiusKm);
+
       const query = locationInput.value.trim();
 
       if (!query || query.length < 3) {
@@ -291,7 +303,7 @@
           fetch(`/apps/store-locator/locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}`)
             .then((res) => res.json())
             .then((data) => {
-              updateMapAndList(userCoords, data.stores, radiusKm);
+              updateMapAndList(userCoords, data.stores);
             });
         })
         .catch(() => {
