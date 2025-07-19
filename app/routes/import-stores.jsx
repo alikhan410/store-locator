@@ -1,4 +1,5 @@
 import prisma from "../db.server";
+import { authenticate } from "../shopify.server";
 
 // const isValidStore = (store) => {
 //   const requiredFields = ["name", "link", "address", "city", "state", "zip"];
@@ -143,6 +144,8 @@ const isValidStore = (store) => {
 };
 
 export const action = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  
   try {
     const body = await request.json();
     const { stores } = body;
@@ -164,6 +167,7 @@ export const action = async ({ request }) => {
         });
       } else {
         sanitizedStores.push({
+          shop: session.shop, // GDPR compliance: associate with current shop
           name: store.name.trim(),
           link: store.link.trim(),
           address: store.address.trim(),

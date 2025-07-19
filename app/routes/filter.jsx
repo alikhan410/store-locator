@@ -1,3 +1,5 @@
+import { authenticate } from "../shopify.server";
+
 // export const loader = async ({ request }) => {
 //   const prisma = (await import("../db.server")).default;
 
@@ -45,6 +47,7 @@
 // };
 
 export const loader = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
   const prisma = (await import("../db.server")).default;
 
   const url = new URL(request.url);
@@ -62,6 +65,7 @@ export const loader = async ({ request }) => {
   const stores = await prisma.store.findMany({
     where: {
       AND: [
+        { shop: session.shop }, // GDPR compliance: only show stores for current shop
         query
           ? {
               OR: [

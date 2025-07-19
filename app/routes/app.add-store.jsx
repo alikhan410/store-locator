@@ -21,19 +21,22 @@ import { Form, useActionData, useLoaderData } from "@remix-run/react";
 import { stateOptions } from "../helper/options";
 import { loadGoogleMaps } from "../helper/loadGoogleMaps";
 import { cleanupGoogleMapsInstances } from "../helper/googleMapsLoader";
+import { authenticate } from "../shopify.server";
 
 const formatPhone = (value) => {
   const phone = parsePhoneNumberFromString(value, "US");
   return phone ? phone.formatNational() : value;
 };
 
-export const loader = () => {
+export const loader = async ({ request }) => {
+  await authenticate.admin(request);
   return {
     googleMapsApiKey: process.env.GOOGLE_MAPS_PUBLIC_KEY,
   };
 };
 
 export const action = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
   const prisma = (await import("../db.server")).default;
   const formData = await request.formData();
   const data = Object.fromEntries(formData);
@@ -44,6 +47,7 @@ export const action = async ({ request }) => {
 
   const newStore = await prisma.store.create({
     data: {
+      shop: session.shop, // GDPR compliance: associate with current shop
       name: data.name,
       link: data.link || null,
       address: data.address,

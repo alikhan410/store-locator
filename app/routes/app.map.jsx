@@ -13,10 +13,17 @@ import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { useState, useEffect, useRef } from "react";
 import { loadGoogleMaps } from "../helper/loadGoogleMaps";
+import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
   const prisma = (await import("../db.server")).default;
+  
+  // GDPR compliance: only show stores for current shop
   const stores = await prisma.store.findMany({
+    where: {
+      shop: session.shop,
+    },
     orderBy: { createdAt: "desc" },
   });
 

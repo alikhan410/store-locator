@@ -25,6 +25,7 @@ export default function App() {
         <Link to="/app/add-store">Add a store</Link>
         <Link to="/app/view-stores">View all stores</Link>
         <Link to="/app/map">🗺️ Map</Link>
+        <Link to="/app/gdpr">🔒 Privacy & GDPR</Link>
         <Link to="/app/billing">Billing</Link>
       </NavMenu>
       <Outlet />

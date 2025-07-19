@@ -1,12 +1,13 @@
 import prisma from "../db.server";
 
-export async function saveStoreToDB(values) {
+export async function saveStoreToDB(values, shop) {
   const lat = parseFloat(values.lat || "0");
   const lng = parseFloat(values.lng || "0");
 
   try {
     const newStore = await prisma.store.create({
       data: {
+        shop: shop, // GDPR compliance: associate with shop
         name: values.name,
         link: values.link,
         address: values.address,
