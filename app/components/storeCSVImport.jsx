@@ -36,6 +36,7 @@ export default function StoreCSVImport({ onImport, onClose }) {
   const [csvHeaders, setCsvHeaders] = useState([]);
   const [parsedData, setParsedData] = useState([]);
   const [fieldMappings, setFieldMappings] = useState({});
+  const [autoMappedFields, setAutoMappedFields] = useState(new Set());
   const [isProcessing, setIsProcessing] = useState(false);
   const [previewData, setPreviewData] = useState([]);
   const [errors, setErrors] = useState([]);
@@ -43,31 +44,57 @@ export default function StoreCSVImport({ onImport, onClose }) {
   // Auto-map fields when CSV headers are loaded
   const autoMapFields = useCallback((headers) => {
     const mappings = {};
+    
+    // Common variations and synonyms for each field
+    const fieldVariations = {
+      name: ['name', 'store name', 'storename', 'business name', 'businessname', 'company', 'company name', 'companyname', 'store', 'location name'],
+      address: ['address', 'address1', 'address 1', 'street', 'street address', 'streetaddress', 'addr', 'location', 'physical address'],
+      address2: ['address2', 'address 2', 'address line 2', 'addressline2', 'suite', 'apt', 'apartment', 'unit', 'floor'],
+      city: ['city', 'town', 'municipality', 'locality'],
+      state: ['state', 'province', 'region', 'state/province', 'state province'],
+      zip: ['zip', 'zip code', 'zipcode', 'postal code', 'postalcode', 'post code', 'postcode', 'zip/postal'],
+      country: ['country', 'nation', 'location country'],
+      phone: ['phone', 'telephone', 'phone number', 'phonenumber', 'tel', 'telephone number', 'contact number', 'phone #'],
+      link: ['link', 'website', 'url', 'web site', 'website url', 'site', 'webpage', 'page'],
+      lat: ['lat', 'latitude', 'lat.', 'lat coordinate', 'latcoord'],
+      lng: ['lng', 'longitude', 'lng.', 'long', 'longitude coordinate', 'lngcoord', 'lon']
+    };
+
+    const autoMapped = new Set();
+    
     headers.forEach((header) => {
-      const headerLower = header.toLowerCase();
+      const headerLower = header.toLowerCase().trim();
+      const headerClean = headerLower.replace(/[^a-z0-9]/g, ''); // Remove special chars
       
-      // Try to find exact matches first
-      const exactMatch = EXPECTED_FIELDS.find(field => 
-        field.key === headerLower || field.label.toLowerCase() === headerLower
-      );
-      
-      if (exactMatch) {
-        mappings[exactMatch.key] = header;
-        return;
+      // Try exact matches first
+      for (const [fieldKey, variations] of Object.entries(fieldVariations)) {
+        if (variations.includes(headerLower) || variations.includes(headerClean)) {
+          mappings[fieldKey] = header;
+          autoMapped.add(fieldKey);
+          break;
+        }
       }
       
-      // Try partial matches
-      const partialMatch = EXPECTED_FIELDS.find(field => 
-        headerLower.includes(field.key) || 
-        headerLower.includes(field.label.toLowerCase().replace(/\s+/g, ''))
-      );
-      
-      if (partialMatch) {
-        mappings[partialMatch.key] = header;
+      // If no exact match, try partial matches
+      if (!Object.values(mappings).includes(header)) {
+        for (const [fieldKey, variations] of Object.entries(fieldVariations)) {
+          const hasMatch = variations.some(variation => 
+            headerLower.includes(variation) || 
+            variation.includes(headerLower) ||
+            headerClean.includes(variation.replace(/[^a-z0-9]/g, ''))
+          );
+          
+          if (hasMatch && !mappings[fieldKey]) {
+            mappings[fieldKey] = header;
+            autoMapped.add(fieldKey);
+            break;
+          }
+        }
       }
     });
     
     setFieldMappings(mappings);
+    setAutoMappedFields(autoMapped);
   }, []);
 
   const handleDropZoneDrop = useCallback(
@@ -107,7 +134,16 @@ export default function StoreCSVImport({ onImport, onClose }) {
       ...prev,
       [fieldKey]: csvHeader
     }));
-  }, []);
+    
+    // If user manually changes a mapping, remove it from auto-mapped set
+    if (csvHeader && autoMappedFields.has(fieldKey)) {
+      setAutoMappedFields(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fieldKey);
+        return newSet;
+      });
+    }
+  }, [autoMappedFields]);
 
   const validateMappings = useCallback(() => {
     const requiredFields = EXPECTED_FIELDS.filter(field => field.required);
@@ -236,27 +272,41 @@ export default function StoreCSVImport({ onImport, onClose }) {
               <BlockStack gap="400">
                 <Text variant="headingMd" as="h3">Map CSV Fields</Text>
                 <Text variant="bodyMd" as="p">
-                  Map your CSV columns to the expected store fields. Required fields are marked with an asterisk (*).
+                  Map your CSV columns to the expected store fields. Required fields are marked with an asterisk (*). 
+                  The system tries to auto-map common column names, but you can adjust the mappings below.
                 </Text>
+                <Banner status="info">
+                  <Text variant="bodyMd" as="p">
+                    <strong>Tip:</strong> Don't worry about column order! The system maps by column names, not positions. 
+                    Common variations like "Store Name", "Business Name", "Company" will be auto-detected.
+                  </Text>
+                </Banner>
                 
-                <BlockStack gap="300">
-                  {EXPECTED_FIELDS.map((field) => (
-                    <InlineStack key={field.key} align="space-between" gap="400">
-                      <Text variant="bodyMd" as="span">
-                        {field.label} {field.required && <Text variant="bodyMd" as="span" color="critical">*</Text>}
-                      </Text>
-                      <div style={{ minWidth: "200px" }}>
-                        <Select
-                          label=""
-                          labelHidden
-                          options={mappingOptions}
-                          value={fieldMappings[field.key] || ""}
-                          onChange={(value) => handleFieldMappingChange(field.key, value)}
-                        />
-                      </div>
-                    </InlineStack>
-                  ))}
-                </BlockStack>
+                                  <BlockStack gap="300">
+                    {EXPECTED_FIELDS.map((field) => (
+                      <InlineStack key={field.key} align="space-between" gap="400">
+                        <InlineStack gap="200" align="center">
+                          <Text variant="bodyMd" as="span">
+                            {field.label} {field.required && <Text variant="bodyMd" as="span" color="critical">*</Text>}
+                          </Text>
+                          {autoMappedFields.has(field.key) && fieldMappings[field.key] && (
+                            <Text variant="bodySm" as="span" color="success">
+                              ✓ Auto-mapped
+                            </Text>
+                          )}
+                        </InlineStack>
+                        <div style={{ minWidth: "200px" }}>
+                          <Select
+                            label=""
+                            labelHidden
+                            options={mappingOptions}
+                            value={fieldMappings[field.key] || ""}
+                            onChange={(value) => handleFieldMappingChange(field.key, value)}
+                          />
+                        </div>
+                      </InlineStack>
+                    ))}
+                  </BlockStack>
               </BlockStack>
             </Card>
           )}
