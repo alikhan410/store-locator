@@ -1,6 +1,10 @@
+# node modules
 node_modules
+
+# macos
 .DS_Store
 
+# build artifacts
 /.cache
 /build
 /app/build
@@ -11,6 +15,7 @@ node_modules
 /prisma/dev.sqlite-journal
 database.sqlite
 
+# environment variables
 env
 .env
 .env.*
@@ -18,8 +23,7 @@ env
 # test coverage reports
 coverage/
 
-
-
+# extensions
 /extensions/*/dist
 
 # Ignore shopify files created during app dev
