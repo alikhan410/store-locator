@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { PrismaClient } from '@prisma/client';
 
 // Mock the shopify.server module
 vi.mock('../../../app/shopify.server', () => ({
@@ -7,6 +6,17 @@ vi.mock('../../../app/shopify.server', () => ({
   authenticate: {
     admin: vi.fn(),
   },
+}));
+
+// Mock the Prisma client
+vi.mock('@prisma/client', () => ({
+  PrismaClient: vi.fn().mockImplementation(() => ({
+    store: {
+      count: vi.fn(),
+      findMany: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+  })),
 }));
 
 // Create a simple request mock since createRequest is not available
@@ -22,23 +32,15 @@ const createRequest = (url, options = {}) => {
   return new Request(url, options);
 };
 
+const { PrismaClient } = await import('@prisma/client');
 const prisma = new PrismaClient();
 
 describe('GDPR Route Integration Tests', () => {
   const testShop = 'test-shop.myshopify.com';
 
   beforeEach(async () => {
-    // Clean up any existing test data
-    await prisma.store.deleteMany({
-      where: { shop: testShop },
-    });
-  });
-
-  afterEach(async () => {
-    // Clean up test data after each test
-    await prisma.store.deleteMany({
-      where: { shop: testShop },
-    });
+    // Clear all mocks before each test
+    vi.clearAllMocks();
   });
 
   describe('Loader', () => {
