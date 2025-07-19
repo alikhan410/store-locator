@@ -37,6 +37,7 @@ model Session {
 
 model Store {
   id        String   @id @default(cuid())
+  shop      String
   name      String
   link      String?
   address   String
