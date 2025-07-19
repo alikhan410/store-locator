@@ -33,6 +33,12 @@ export default defineConfig({
       name: 'Mobile Safari',
       use: { ...devices['iPhone 12'] },
     },
+    // Basic tests that don't require web server
+    {
+      name: 'basic-tests',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: '**/accessibility-basic.spec.js',
+    },
   ],
   webServer: {
     command: 'npm run dev',
