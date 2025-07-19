@@ -8,6 +8,7 @@ export const loader = async ({ request }) => {
     const lng = parseFloat(url.searchParams.get("lng") || "0");
     const radiusKm = parseFloat(url.searchParams.get("radius") || "50");
     const shop = url.searchParams.get("shop");
+    console.log("shop is: ", shop);
     console.log("radius is: ", radiusKm, " km");
 
     let nearbyCandidates;
