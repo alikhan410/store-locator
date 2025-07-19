@@ -14,11 +14,13 @@ import {
   Button,
   Pagination,
   Divider,
+  ActionList,
+  Popover,
 } from "@shopify/polaris";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { states } from "../helper/states";
-import { exportAllStoresToCSV } from "../helper/exportAction";
+import { exportAllStoresToCSV, exportFilteredStoresToCSV } from "../helper/exportAction";
 import StoreCSVImport from "../components/storeCSVImport";
 
 export const loader = async () => {
@@ -32,6 +34,7 @@ export default function StoresPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [showImport, setShowImport] = useState(false);
+  const [exportPopoverActive, setExportPopoverActive] = useState(false);
   const navigate = useNavigate();
 
   const itemsPerPage = 50;
@@ -62,14 +65,6 @@ export default function StoresPage() {
   const handleStateChange = useCallback((value) => setStateFilter(value), []);
   const handleCityChange = useCallback((value) => setCityFilter(value), []);
 
-  const handleHasCoordinatesChange = useCallback(
-    (val) => setHasCoordinates(val),
-    [],
-  );
-
-  const handleHasPhoneChange = useCallback((val) => setHasPhone(val), []);
-  const handleHasLinkChange = useCallback((val) => setHasLink(val), []);
-
   const handleQueryValueRemove = () => setQueryValue("");
   const handleStateFilterRemove = () => setStateFilter([]);
   const handleCityFilterRemove = () => setCityFilter("");
@@ -77,83 +72,108 @@ export default function StoresPage() {
   const handlePhoneRemove = () => setHasPhone(false);
   const handleLinkRemove = () => setHasLink(false);
 
+  const handleHasCoordinatesChange = useCallback(
+    (checked) => setHasCoordinates(checked),
+    [],
+  );
+  const handleHasPhoneChange = useCallback(
+    (checked) => setHasPhone(checked),
+    [],
+  );
+  const handleHasLinkChange = useCallback(
+    (checked) => setHasLink(checked),
+    [],
+  );
+
   const handleClearAll = useCallback(() => {
-    handleQueryValueRemove();
-    handleStateFilterRemove();
-    handleCityFilterRemove();
-    handleCoordinatesRemove();
-    handlePhoneRemove();
-    handleLinkRemove();
-  }, [
-    handleQueryValueRemove,
-    handleStateFilterRemove,
-    handleCityFilterRemove,
-    handleCoordinatesRemove,
-    handlePhoneRemove,
-    handleLinkRemove,
-  ]);
+    setQueryValue("");
+    setStateFilter([]);
+    setCityFilter("");
+    setHasCoordinates(false);
+    setHasPhone(false);
+    setHasLink(false);
+    setFilteredStores(allStores);
+    setCurrentPage(1);
+  }, [allStores]);
 
-  // Applied filters for UI tags
   const appliedFilters = [];
-
+  if (queryValue) {
+    appliedFilters.push({
+      key: "query",
+      label: `Search: ${queryValue}`,
+      onRemove: handleQueryValueRemove,
+    });
+  }
   if (stateFilter.length > 0) {
     appliedFilters.push({
-      key: "stateFilter",
+      key: "state",
       label: `State: ${stateFilter.join(", ")}`,
-      onRemove: () => setStateFilter([]),
+      onRemove: handleStateFilterRemove,
     });
   }
-
   if (cityFilter) {
     appliedFilters.push({
-      key: "cityFilter",
+      key: "city",
       label: `City: ${cityFilter}`,
-      onRemove: () => setCityFilter(""),
+      onRemove: handleCityFilterRemove,
     });
   }
-
   if (hasCoordinates) {
     appliedFilters.push({
-      key: "hasCoordinates",
+      key: "coordinates",
       label: "Has coordinates",
-      onRemove: () => setHasCoordinates(false),
+      onRemove: handleCoordinatesRemove,
     });
   }
-
   if (hasPhone) {
     appliedFilters.push({
-      key: "hasPhone",
+      key: "phone",
       label: "Has phone",
-      onRemove: () => setHasPhone(false),
+      onRemove: handlePhoneRemove,
     });
   }
-
   if (hasLink) {
     appliedFilters.push({
-      key: "hasLink",
+      key: "link",
       label: "Has link",
-      onRemove: () => setHasLink(false),
+      onRemove: handleLinkRemove,
     });
   }
 
   const filters = [
     {
-      key: "stateFilter",
-      label: "State",
+      key: "query",
+      label: "Search",
       filter: (
-        <ChoiceList
-          title="State"
-          titleHidden
-          choices={states}
-          selected={stateFilter}
-          onChange={handleStateChange}
-          allowMultiple
+        <TextField
+          label="Search stores"
+          value={queryValue}
+          onChange={handleQueryChange}
+          autoComplete="off"
+          labelHidden
         />
       ),
       shortcut: true,
     },
     {
-      key: "cityFilter",
+      key: "state",
+      label: "State",
+      filter: (
+        <ChoiceList
+          title="State"
+          titleHidden
+          choices={states.map((state) => ({
+            label: state,
+            value: state,
+          }))}
+          selected={stateFilter}
+          onChange={handleStateChange}
+          allowMultiple
+        />
+      ),
+    },
+    {
+      key: "city",
       label: "City",
       filter: (
         <TextField
@@ -165,7 +185,6 @@ export default function StoresPage() {
         />
       ),
     },
-
     {
       key: "hasCoordinates",
       label: "Has Coordinates",
@@ -237,6 +256,37 @@ export default function StoresPage() {
     setCurrentPage(1);
   }
 
+  // Export functions
+  const handleExportAll = useCallback(() => {
+    exportAllStoresToCSV(allStores);
+    setExportPopoverActive(false);
+  }, [allStores]);
+
+  const handleExportFiltered = useCallback(() => {
+    const currentFilters = {
+      query: queryValue,
+      state: stateFilter,
+      city: cityFilter,
+      hasCoordinates,
+      hasPhone,
+      hasLink,
+    };
+    exportFilteredStoresToCSV(filteredStores, currentFilters);
+    setExportPopoverActive(false);
+  }, [filteredStores, queryValue, stateFilter, cityFilter, hasCoordinates, hasPhone, hasLink]);
+
+  const exportActions = [
+    {
+      content: `Export all stores (${allStores.length})`,
+      onAction: handleExportAll,
+    },
+    {
+      content: `Export filtered stores (${filteredStores.length})`,
+      onAction: handleExportFiltered,
+      disabled: filteredStores.length === allStores.length && appliedFilters.length === 0,
+    },
+  ];
+
   const resourceName = {
     singular: "store",
     plural: "stores",
@@ -300,11 +350,6 @@ export default function StoresPage() {
       }}
       secondaryActions={[
         {
-          content: "Export",
-          accessibilityLabel: "Export product list",
-          onAction: () => exportAllStoresToCSV(allStores),
-        },
-        {
           content: "Import",
           accessibilityLabel: "Import store list",
           onAction: () => setShowImport((prev) => !prev),
@@ -328,6 +373,30 @@ export default function StoresPage() {
             </Box>
           </Filters>
         }
+        
+        {/* Export Button with Popover */}
+        <Box padding="400" paddingBlockStart="200">
+          <Popover
+            active={exportPopoverActive}
+            activator={
+              <Button
+                onClick={() => setExportPopoverActive(true)}
+                disclosure
+                accessibilityLabel="Export options"
+              >
+                Export Stores
+              </Button>
+            }
+            onClose={() => setExportPopoverActive(false)}
+            preferredAlignment="right"
+          >
+            <ActionList
+              actionRole="menuitem"
+              items={exportActions}
+            />
+          </Popover>
+        </Box>
+        
         <IndexTable
           resourceName={resourceName}
           itemCount={filteredStores.length}
