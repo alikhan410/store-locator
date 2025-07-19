@@ -1,3 +1,6 @@
+// Import database configuration early to set up environment-specific database URLs
+import "./config/database.js";
+
 import { PassThrough } from "stream";
 import { renderToPipeableStream } from "react-dom/server";
 import { RemixServer } from "@remix-run/react";
