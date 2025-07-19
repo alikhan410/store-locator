@@ -13,6 +13,7 @@ import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { useLoaderData, useNavigate } from "@remix-run/react";
 import { useState, useEffect, useRef } from "react";
 import { loadGoogleMaps } from "../helper/loadGoogleMaps";
+import { googleMapsFallback } from "../helper/googleMapsFallback";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
@@ -53,6 +54,20 @@ export default function MapPage() {
       try {
         setIsLoading(true);
         setMapError(null);
+
+        // Check if Google Maps is available
+        const isAvailable = await googleMapsFallback.checkAvailability(googleMapsApiKey);
+        
+        if (!isAvailable) {
+          // Use fallback map display
+          googleMapsFallback.createFallbackMap(mapRef.current, stores, {
+            width: 800,
+            height: 600,
+            zoom: 12
+          });
+          setIsLoading(false);
+          return;
+        }
 
         // Load Google Maps
         await loadGoogleMaps(googleMapsApiKey);
@@ -140,7 +155,9 @@ export default function MapPage() {
         setIsLoading(false);
       } catch (error) {
         console.error("Failed to initialize map:", error);
-        setMapError("Failed to load the map. Please try refreshing the page.");
+        
+        // Use fallback display instead of showing error
+        googleMapsFallback.showMapError(mapRef.current, 'general');
         setIsLoading(false);
       }
     };

@@ -4,33 +4,59 @@ import { AppProvider } from "@shopify/shopify-app-remix/react";
 import { NavMenu } from "@shopify/app-bridge-react";
 import polarisStyles from "@shopify/polaris/build/esm/styles.css?url";
 import { authenticate } from "../shopify.server";
+import { accessibilityUtils } from "../helper/accessibility";
+import { useEffect } from "react";
 
 export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
 
-  return { apiKey: process.env.SHOPIFY_API_KEY || "" };
+  return { apiKey: process.env.SHOPIFY_CLIENT_ID || "" };
 };
 
 export default function App() {
   const { apiKey } = useLoaderData();
 
+  useEffect(() => {
+    // Add skip link for accessibility
+    accessibilityUtils.addSkipLink('main-content', 'Skip to main content');
+    
+    // Announce page load
+    accessibilityUtils.announcePageChange('Store Locator Dashboard');
+  }, []);
+
   return (
     <AppProvider isEmbeddedApp apiKey={apiKey}>
       <NavMenu>
-        <Link to="/app" rel="home">
+        <Link to="/app" rel="home" aria-label="Store Locator Home">
           🏪 Store Locator
         </Link>
-        <Link to="/app/add-store">Add a store</Link>
-        <Link to="/app/view-stores">View all stores</Link>
-        <Link to="/app/map">🗺️ Map</Link>
-        <Link to="/app/gdpr">🔒 Privacy & GDPR</Link>
-        <Link to="/app/billing">Billing</Link>
-        <Link to="/privacy-policy" target="_blank">📄 Privacy Policy</Link>
-        <Link to="/terms-of-service" target="_blank">📋 Terms of Service</Link>
+        <Link to="/app/add-store" aria-label="Add a new store location">
+          Add a store
+        </Link>
+        <Link to="/app/view-stores" aria-label="View all store locations">
+          View all stores
+        </Link>
+        <Link to="/app/map" aria-label="View stores on interactive map">
+          🗺️ Map
+        </Link>
+        <Link to="/app/gdpr" aria-label="Data privacy and GDPR settings">
+          🔒 Privacy & GDPR
+        </Link>
+        <Link to="/app/billing" aria-label="Billing and subscription settings">
+          Billing
+        </Link>
+        <Link to="/privacy-policy" target="_blank" aria-label="Privacy Policy (opens in new window)">
+          📄 Privacy Policy
+        </Link>
+        <Link to="/terms-of-service" target="_blank" aria-label="Terms of Service (opens in new window)">
+          📋 Terms of Service
+        </Link>
       </NavMenu>
-      <Outlet />
+      <main id="main-content" role="main" aria-label="Main content">
+        <Outlet />
+      </main>
     </AppProvider>
   );
 }

@@ -22,6 +22,7 @@ import { stateOptions } from "../helper/options";
 import { loadGoogleMaps } from "../helper/loadGoogleMaps";
 import { cleanupGoogleMapsInstances } from "../helper/googleMapsLoader";
 import { authenticate } from "../shopify.server";
+import { accessibilityUtils } from "../helper/accessibility";
 
 const formatPhone = (value) => {
   const phone = parsePhoneNumberFromString(value, "US");
@@ -104,6 +105,11 @@ export default function AddStore() {
   // Ensure we're on the client
   useEffect(() => {
     setIsClientState(true);
+  }, []);
+
+  // Accessibility setup
+  useEffect(() => {
+    accessibilityUtils.announcePageChange('Add New Store Location');
   }, []);
 
   //Feedback when data is saved
@@ -351,6 +357,8 @@ export default function AddStore() {
                     }
                     value={formData.name}
                     onChange={handleChange("name")}
+                    aria-required="true"
+                    aria-describedby="name-error"
                   />
                   <TextField
                     name="link"
@@ -381,6 +389,7 @@ export default function AddStore() {
                         ref={autocompleteRef}
                         type="text"
                         name="address"
+                        id="address-input"
                         value={formData.address}
                         onChange={(e) =>
                           handleChange("address")(e.target.value)
@@ -395,6 +404,9 @@ export default function AddStore() {
                         }}
                         placeholder="Start typing an address..."
                         autoComplete="off"
+                        aria-required="true"
+                        aria-describedby="address-error"
+                        aria-label="Store address - required field"
                       />
                     </div>
 
@@ -422,6 +434,8 @@ export default function AddStore() {
                     options={stateOptions}
                     onChange={handleChange("state")}
                     value={formData.state}
+                    aria-required="true"
+                    aria-describedby="state-error"
                   />
                   <TextField
                     name="city"
@@ -432,6 +446,8 @@ export default function AddStore() {
                     }
                     onChange={handleChange("city")}
                     value={formData.city}
+                    aria-required="true"
+                    aria-describedby="city-error"
                   />
                   <TextField
                     name="zip"
@@ -443,6 +459,8 @@ export default function AddStore() {
                     }
                     value={formData.zip}
                     onChange={handleChange("zip")}
+                    aria-required="true"
+                    aria-describedby="zip-error"
                   />
                   <TextField
                     name="phone"
@@ -453,6 +471,7 @@ export default function AddStore() {
                       handleChange("phone")(formatted);
                     }}
                     type="tel"
+                    aria-describedby="phone-help"
                   />
                 </FormLayout.Group>
 
@@ -536,7 +555,11 @@ export default function AddStore() {
 
                 <InlineStack align="end">
                   <ButtonGroup>
-                    <Button submit variant="primary">
+                    <Button 
+                      submit 
+                      variant="primary"
+                      aria-label="Save store information and create new store location"
+                    >
                       Save Store Info
                     </Button>
                   </ButtonGroup>
