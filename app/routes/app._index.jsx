@@ -77,11 +77,12 @@ export const loader = async ({ request }) => {
       missingCoordinates,
       missingPhone,
     },
+    contactUrl: process.env.CONTACT_URL || "https://storetrail.app/support",
   };
 };
 
 export default function Index() {
-  const { stores, metrics } = useLoaderData();
+  const { stores, metrics, contactUrl } = useLoaderData();
   const navigate = useNavigate();
   const shopify = useAppBridge();
   const [showImport, setShowImport] = useState(false);
@@ -257,6 +258,13 @@ export default function Index() {
                   </Button>
                   <Button icon={ExportIcon} onClick={handleExportStores}>
                     Export Data
+                  </Button>
+                  <Button
+                    icon="💬"
+                    onClick={() => window.open(contactUrl, "_blank")}
+                    aria-label="Contact Support (opens in new window)"
+                  >
+                    Contact Support
                   </Button>
                 </InlineStack>
               </BlockStack>

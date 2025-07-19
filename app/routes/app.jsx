@@ -12,11 +12,14 @@ export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
 
-  return { apiKey: process.env.SHOPIFY_CLIENT_ID || "" };
+  return { 
+    apiKey: process.env.SHOPIFY_CLIENT_ID || "",
+    contactUrl: process.env.CONTACT_URL || "https://storetrail.app/support"
+  };
 };
 
 export default function App() {
-  const { apiKey } = useLoaderData();
+  const { apiKey, contactUrl } = useLoaderData();
 
   useEffect(() => {
     // Add skip link for accessibility
@@ -52,6 +55,13 @@ export default function App() {
         </Link>
         <Link to="/terms-of-service" target="_blank" aria-label="Terms of Service (opens in new window)">
           📋 Terms of Service
+        </Link>
+        <Link 
+          to={contactUrl} 
+          target="_blank" 
+          aria-label="Contact Support (opens in new window)"
+        >
+          💬 Support
         </Link>
       </NavMenu>
       <main id="main-content" role="main" aria-label="Main content">
