@@ -241,6 +241,12 @@ export default function Index() {
                     Manage Stores
                   </Button>
                   <Button
+                    icon={LocationIcon}
+                    onClick={() => navigate("/app/map")}
+                  >
+                    View Map
+                  </Button>
+                  <Button
                     icon={ImportIcon}
                     onClick={() => navigate("/app/view-stores")}
                   >

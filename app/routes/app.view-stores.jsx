@@ -360,6 +360,11 @@ export default function StoresPage() {
       }}
               secondaryActions={[
           {
+            content: "🗺️ Map View",
+            accessibilityLabel: "View stores on map",
+            onAction: () => navigate("/app/map"),
+          },
+          {
             content: "Import",
             accessibilityLabel: "Import store list",
             onAction: () => setShowImportModal(true),
