@@ -1,5 +1,6 @@
 import prisma from "../db.server";
 import { getBoundingBox, haversineDistance } from "../helper/geoUtils";
+import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
   try {

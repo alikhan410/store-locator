@@ -1,4 +1,5 @@
 import prisma from "../db.server";
+import { authenticate } from "../shopify.server";
 
 const isValidStore = (store) => {
   const requiredFields = ["name", "address", "city", "state", "zip"];
@@ -44,6 +45,8 @@ const isValidStore = (store) => {
 export const action = async ({ request }) => {
   try {
     const body = await request.json();
+    const { session } = await authenticate.admin(request);
+
     const { stores } = body;
 
     if (!Array.isArray(stores)) {
@@ -64,6 +67,7 @@ export const action = async ({ request }) => {
       } else {
         sanitizedStores.push({
           name: store.name?.trim() || "",
+          shop: session.shop,
           link: store.link?.trim() || "",
           address: store.address?.trim() || "",
           address2: store.address2?.trim() || null,
