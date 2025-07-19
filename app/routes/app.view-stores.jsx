@@ -33,7 +33,7 @@ export const loader = async () => {
 export default function StoresPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [showImport, setShowImport] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [exportPopoverActive, setExportPopoverActive] = useState(false);
   const navigate = useNavigate();
 
@@ -250,10 +250,20 @@ export default function StoresPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ stores: parsedStores }),
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Refresh the stores list
+        window.location.reload();
+      } else {
+        console.error("Import failed:", data.error);
+      }
+    })
+    .catch(error => {
+      console.error("Import error:", error);
     });
-    setFilteredStores((prev) => [...parsedStores, ...prev]);
-    setShowImport(false);
-    setCurrentPage(1);
+    setShowImportModal(false);
   }
 
   // Export functions
@@ -348,13 +358,13 @@ export default function StoresPage() {
         content: "Add a store",
         onAction: () => navigate("/app/add-store"),
       }}
-      secondaryActions={[
-        {
-          content: "Import",
-          accessibilityLabel: "Import store list",
-          onAction: () => setShowImport((prev) => !prev),
-        },
-      ]}
+              secondaryActions={[
+          {
+            content: "Import",
+            accessibilityLabel: "Import store list",
+            onAction: () => setShowImportModal(true),
+          },
+        ]}
     >
       <Card>
         {
@@ -441,10 +451,8 @@ export default function StoresPage() {
           />
         </div>
       </Card>
-      {showImport && (
-        <Card title="Import Stores from CSV" sectioned>
-          <StoreCSVImport onImport={onImport} />
-        </Card>
+      {showImportModal && (
+        <StoreCSVImport onImport={onImport} onClose={() => setShowImportModal(false)} />
       )}
     </Page>
   );
