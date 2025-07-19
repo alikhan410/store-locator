@@ -54,7 +54,7 @@ Items that need to be created as separate documents or websites.
 - [ ] **FAQ section** - Need to anticipate and answer common questions
 
 ### ⚠️ 2.2 Privacy & Data Handling
-- [ ] **Privacy policy** - Need to create privacy policy document
+- [x] **Privacy policy** - Need to create privacy policy document
 - [ ] **Data collection disclosure** - Need to document what data is collected
 - [ ] **Data retention policy** - Need to define how long data is kept
 - [ ] **GDPR compliance** - Need to review and ensure GDPR compliance
