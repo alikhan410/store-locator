@@ -33,7 +33,7 @@ export const loader = async ({ request }) => {
       // For small radius, fetch all with lat/lng
       nearbyCandidates = await prisma.store.findMany({
         where: {
-          shop: session.shop,
+          // shop: session.shop,
           lat: { not: null },
           lng: { not: null },
         },
