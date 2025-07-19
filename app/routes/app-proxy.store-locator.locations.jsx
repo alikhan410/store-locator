@@ -2,6 +2,7 @@ import prisma from "../db.server";
 import { getBoundingBox, haversineDistance } from "../helper/geoUtils";
 
 export const loader = async ({ request }) => {
+  console.log("proxy is running");
   try {
     const url = new URL(request.url);
     const lat = parseFloat(url.searchParams.get("lat") || "0");
