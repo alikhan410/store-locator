@@ -1,19 +1,9 @@
 ####
-# VERCEL CONFIG
-####
-VERCEL_POSTGRES_DATABASE_URL=postgres://56477cb2f2138d23856cdbbfe4546182b00c107f94a61e994e2974cc3a419f13:sk_qY9sJeHhzVJbRtrTUDQdC@db.prisma.io:5432/?sslmode=require
-
-####
 # SHOPIFY CONFIG
 ####
 SHOPIFY_API_KEY=fc0568978e5a7a64c4020dc35c935330
 SHOPIFY_API_SECRET=b5aed8e7772bf3e408544481a2703b30
 SCOPES=read_themes,write_app_proxy,write_products,write_themes
-# SHOPIFY_STORE_LOCATOR_BLOCK_ID=c4b6fbe4-e085-4cac-a414-2f510ba54944
-SHOPIFY_APP_URL=https://store-locator-one.vercel.app/
-SHOPIFY_STORE_LOCATOR_BLOCK_ID=ab5207f7-1f91-4fab-9d6b-0d399fbd6cc0
-
-
 
 ####
 # PRISMA POSTGRES

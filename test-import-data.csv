@@ -1,0 +1,16 @@
+Name,Address,City,State,Zip,Phone,Website,Latitude,Longitude
+Downtown Store,123 Main St,New York,NY,10001,555-1234,https://downtown.com,40.7589,-73.9851
+Central Location,456 Oak Ave,Los Angeles,CA,90210,555-5678,https://central.com,34.0522,-118.2437
+North Branch,789 Pine Rd,Chicago,IL,60601,555-9012,https://north.com,41.8781,-87.6298
+South Store,321 Elm St,Boston,MA,02101,555-3456,https://south.com,42.3601,-71.0589
+West Location,654 Maple Ave,Seattle,WA,98101,555-7890,https://west.com,47.6062,-122.3321
+East Branch,987 Cedar Ln,Portland,OR,97201,555-2345,https://east.com,45.5152,-122.6784
+Missing Address,,San Francisco,CA,94102,555-1111,https://missing.com,37.7749,-122.4194
+Invalid Phone,111 Test St,Miami,FL,33101,not-a-phone,https://invalid.com,25.7617,-80.1918
+No Website,222 Sample Ave,Denver,CO,80201,555-9999,,39.7392,-104.9903
+Bad Coordinates,333 Demo Rd,Phoenix,AZ,85001,555-8888,https://bad.com,invalid-lat,invalid-lng
+Empty Name,,Austin,TX,73301,555-7777,https://empty.com,30.2672,-97.7431
+Missing City,444 Test Blvd,,NV,89101,555-6666,https://city.com,36.1699,-115.1398
+No State,555 Sample St,Detroit,,48201,555-5555,https://state.com,42.3314,-83.0458
+Invalid ZIP,666 Demo Ave,Atlanta,GA,not-zip,555-4444,https://zip.com,33.7490,-84.3880
+Perfect Store,777 Perfect St,Perfect City,PC,12345,555-3333,https://perfect.com,40.7128,-74.0060 

@@ -84,15 +84,17 @@ import prisma from "../db.server";
 // };
 
 const isValidStore = (store) => {
-  const requiredFields = ["name", "link", "address", "city", "state", "zip"];
+  const requiredFields = ["name", "address", "city", "state", "zip"];
   const errors = [];
 
+  // Check required fields
   for (const field of requiredFields) {
     if (typeof store[field] !== "string" || store[field].trim() === "") {
       errors.push(`${field} is required`);
     }
   }
 
+  // Validate optional fields
   if (store.address2 && typeof store.address2 !== "string") {
     errors.push("address2 must be a string");
   }
@@ -101,20 +103,36 @@ const isValidStore = (store) => {
     errors.push("phone must be a string");
   }
 
-  if (
-    store.lat !== undefined &&
-    store.lat !== null &&
-    isNaN(parseFloat(store.lat))
-  ) {
-    errors.push("lat must be a valid number");
+  // Validate phone number format (basic validation)
+  if (store.phone && store.phone.trim() !== "") {
+    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+    const cleanPhone = store.phone.replace(/[\s\-\(\)\.]/g, '');
+    if (!phoneRegex.test(cleanPhone)) {
+      errors.push("phone must be a valid phone number");
+    }
   }
 
-  if (
-    store.lng !== undefined &&
-    store.lng !== null &&
-    isNaN(parseFloat(store.lng))
-  ) {
-    errors.push("lng must be a valid number");
+  // Validate ZIP code format (basic US ZIP validation)
+  if (store.zip && store.zip.trim() !== "") {
+    const zipRegex = /^\d{5}(-\d{4})?$/;
+    if (!zipRegex.test(store.zip.trim())) {
+      errors.push("zip must be a valid ZIP code (e.g., 12345 or 12345-6789)");
+    }
+  }
+
+  // Validate coordinates
+  if (store.lat !== undefined && store.lat !== null && store.lat !== "") {
+    const lat = parseFloat(store.lat);
+    if (isNaN(lat) || lat < -90 || lat > 90) {
+      errors.push("latitude must be a valid number between -90 and 90");
+    }
+  }
+
+  if (store.lng !== undefined && store.lng !== null && store.lng !== "") {
+    const lng = parseFloat(store.lng);
+    if (isNaN(lng) || lng < -180 || lng > 180) {
+      errors.push("longitude must be a valid number between -180 and 180");
+    }
   }
 
   if (store.country && typeof store.country !== "string") {

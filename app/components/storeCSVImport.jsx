@@ -10,7 +10,9 @@ import {
   DataTable,
   Banner,
   Spinner,
-  Modal
+  Modal,
+  TextField,
+  List
 } from "@shopify/polaris";
 import { NoteIcon } from "@shopify/polaris-icons";
 import { useState, useCallback, useMemo } from "react";
@@ -40,6 +42,9 @@ export default function StoreCSVImport({ onImport, onClose }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [previewData, setPreviewData] = useState([]);
   const [errors, setErrors] = useState([]);
+  const [importResults, setImportResults] = useState(null);
+  const [showErrorReport, setShowErrorReport] = useState(false);
+  const [failedRows, setFailedRows] = useState([]);
 
   // Auto-map fields when CSV headers are loaded
   const autoMapFields = useCallback((headers) => {
@@ -165,7 +170,10 @@ export default function StoreCSVImport({ onImport, onClose }) {
     
     try {
       const mappedStores = parsedData.map((row, index) => {
-        const store = {};
+        const store = {
+          originalRow: index + 1, // Track original row number
+          originalData: row, // Keep original data for error reporting
+        };
         
         EXPECTED_FIELDS.forEach(field => {
           const csvHeader = fieldMappings[field.key];
@@ -182,7 +190,45 @@ export default function StoreCSVImport({ onImport, onClose }) {
         return store;
       });
 
-      onImport(mappedStores);
+      // Send to backend for validation and import
+      fetch("/import-stores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stores: mappedStores }),
+      })
+      .then(response => response.json())
+      .then(data => {
+        setIsProcessing(false);
+        
+        if (data.success) {
+          setImportResults(data);
+          
+          if (data.errors && data.errors.length > 0) {
+            // Process failed rows for the error report
+            const failed = data.errors.map(error => {
+              const originalRow = mappedStores[error.row - 1];
+              return {
+                row: error.row,
+                originalData: originalRow.originalData,
+                mappedData: originalRow,
+                errors: error.errors,
+                fixed: false,
+              };
+            });
+            setFailedRows(failed);
+            setShowErrorReport(true);
+          } else {
+            // All imports successful
+            onImport(mappedStores);
+          }
+        } else {
+          setErrors([data.error || "Import failed"]);
+        }
+      })
+      .catch(error => {
+        setIsProcessing(false);
+        setErrors([`Import error: ${error.message}`]);
+      });
     } catch (error) {
       setErrors([`Import error: ${error.message}`]);
       setIsProcessing(false);
@@ -342,6 +388,198 @@ export default function StoreCSVImport({ onImport, onClose }) {
               </InlineStack>
             </Banner>
           )}
+
+          {/* Import Results */}
+          {importResults && (
+            <Card>
+              <BlockStack gap="300">
+                <Text variant="headingMd" as="h3">Import Results</Text>
+                
+                <Banner status={importResults.partial ? "warning" : "success"}>
+                  <BlockStack gap="200">
+                    <Text variant="bodyMd">
+                      <strong>Successfully imported:</strong> {importResults.imported} stores
+                    </Text>
+                    {importResults.skipped > 0 && (
+                      <Text variant="bodyMd">
+                        <strong>Skipped due to errors:</strong> {importResults.skipped} stores
+                      </Text>
+                    )}
+                  </BlockStack>
+                </Banner>
+
+                {importResults.errors && importResults.errors.length > 0 && (
+                  <Button
+                    onClick={() => setShowErrorReport(true)}
+                    variant="secondary"
+                  >
+                    View Error Report ({importResults.errors.length} rows)
+                  </Button>
+                )}
+              </BlockStack>
+            </Card>
+          )}
+
+          {/* Error Report */}
+          {showErrorReport && failedRows.length > 0 && (
+            <ErrorReportModal
+              failedRows={failedRows}
+              fieldMappings={fieldMappings}
+              onClose={() => setShowErrorReport(false)}
+              onRetryImport={(fixedRows) => {
+                // Re-import the fixed rows
+                const fixedStores = fixedRows.map(row => row.mappedData);
+                onImport(fixedStores);
+                setShowErrorReport(false);
+              }}
+            />
+          )}
+        </BlockStack>
+      </Modal.Section>
+    </Modal>
+  );
+}
+
+// Error Report Modal Component
+function ErrorReportModal({ failedRows, fieldMappings, onClose, onRetryImport }) {
+  const [editableRows, setEditableRows] = useState(failedRows.map(row => ({ ...row })));
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleFieldChange = (rowIndex, fieldKey, value) => {
+    setEditableRows(prev => prev.map((row, index) => 
+      index === rowIndex 
+        ? { 
+            ...row, 
+            mappedData: { ...row.mappedData, [fieldKey]: value },
+            fixed: true 
+          }
+        : row
+    ));
+  };
+
+  const handleRetryImport = () => {
+    setIsProcessing(true);
+    
+    // Validate the fixed rows
+    const validRows = editableRows.filter(row => {
+      const requiredFields = EXPECTED_FIELDS.filter(field => field.required);
+      return requiredFields.every(field => 
+        row.mappedData[field.key] && row.mappedData[field.key].trim() !== ""
+      );
+    });
+
+    if (validRows.length === 0) {
+      alert("Please fix at least one row before retrying import.");
+      setIsProcessing(false);
+      return;
+    }
+
+    onRetryImport(validRows);
+  };
+
+  const exportFailedRows = () => {
+    const csvContent = [
+      // Header row
+      Object.keys(failedRows[0].originalData).join(','),
+      // Data rows
+      ...failedRows.map(row => 
+        Object.values(row.originalData).map(value => 
+          typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+        ).join(',')
+      )
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'failed_import_rows.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Modal
+      open={true}
+      onClose={onClose}
+      title="Import Error Report"
+      primaryAction={{
+        content: "Re-import Fixed Rows",
+        onAction: handleRetryImport,
+        loading: isProcessing,
+        disabled: editableRows.filter(row => row.fixed).length === 0
+      }}
+      secondaryActions={[
+        {
+          content: "Export Failed Rows",
+          onAction: exportFailedRows
+        },
+        {
+          content: "Close",
+          onAction: onClose
+        }
+      ]}
+      large
+    >
+      <Modal.Section>
+        <BlockStack gap="400">
+          <Banner status="warning">
+            <Text variant="bodyMd">
+              The following {failedRows.length} rows could not be imported due to validation errors. 
+              You can fix the data below and re-import, or export the failed rows to fix them externally.
+            </Text>
+          </Banner>
+
+          {editableRows.map((row, rowIndex) => (
+            <Card key={row.row}>
+              <BlockStack gap="300">
+                <InlineStack align="space-between">
+                  <Text variant="headingSm" as="h4">
+                    Row {row.row} - {row.originalData[Object.keys(row.originalData)[0]] || 'Unnamed Store'}
+                  </Text>
+                  {row.fixed && (
+                    <Text variant="bodySm" color="success">✓ Fixed</Text>
+                  )}
+                </InlineStack>
+
+                {/* Error Messages */}
+                <Banner status="critical" title="Validation Errors">
+                  <List>
+                    {row.errors.map((error, errorIndex) => (
+                      <List.Item key={errorIndex}>{error}</List.Item>
+                    ))}
+                  </List>
+                </Banner>
+
+                {/* Editable Fields */}
+                <BlockStack gap="300">
+                  {EXPECTED_FIELDS.map((field) => {
+                    const csvHeader = fieldMappings[field.key];
+                    const originalValue = csvHeader ? row.originalData[csvHeader] : '';
+                    const currentValue = row.mappedData[field.key] || '';
+                    
+                    return (
+                      <InlineStack key={field.key} align="space-between" gap="400">
+                        <Text variant="bodyMd" as="span">
+                          {field.label} {field.required && <Text variant="bodyMd" as="span" color="critical">*</Text>}
+                        </Text>
+                        <div style={{ minWidth: "200px" }}>
+                          <TextField
+                            label=""
+                            labelHidden
+                            value={currentValue}
+                            onChange={(value) => handleFieldChange(rowIndex, field.key, value)}
+                            placeholder={originalValue || `Enter ${field.label.toLowerCase()}`}
+                            error={field.required && !currentValue.trim() ? "Required field" : undefined}
+                          />
+                        </div>
+                      </InlineStack>
+                    );
+                  })}
+                </BlockStack>
+              </BlockStack>
+            </Card>
+          ))}
         </BlockStack>
       </Modal.Section>
     </Modal>
