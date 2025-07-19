@@ -4,7 +4,7 @@ import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
   try {
-    const { session } = await authenticate.admin(request);
+    // const { session } = await authenticate.admin(request);
     const url = new URL(request.url);
     const lat = parseFloat(url.searchParams.get("lat") || "0");
     const lng = parseFloat(url.searchParams.get("lng") || "0");
@@ -24,7 +24,7 @@ export const loader = async ({ request }) => {
 
       nearbyCandidates = await prisma.store.findMany({
         where: {
-          shop: session.shop,
+          // shop: session.shop,
           lat: { not: null, gte: minLat, lte: maxLat },
           lng: { not: null, gte: minLng, lte: maxLng },
         },
