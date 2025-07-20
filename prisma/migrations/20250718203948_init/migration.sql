@@ -33,6 +33,7 @@ CREATE TABLE "Store" (
     "phone" TEXT,
     "lat" DOUBLE PRECISION,
     "lng" DOUBLE PRECISION,
+    "notes" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Store_pkey" PRIMARY KEY ("id")

@@ -27,6 +27,7 @@ model Session {
 
 model Store {
   id        String   @id @default(cuid())
+  shop      String
   name      String
   link      String?
   address   String
@@ -40,5 +41,4 @@ model Store {
   lng       Float?
   notes     String?
   createdAt DateTime @default(now())
-  shop      String
 }

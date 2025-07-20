@@ -16,7 +16,7 @@ export const exportAllStoresToCSV = (stores) => {
   ];
 
   const csvRows = [
-    headers.join(","), // Header row
+    headers.join(","),
     ...stores.map((store) =>
       [
         store.name,

@@ -1,6 +1,5 @@
-// store-locator.js
-import { createMap, updateMapAndList } from './map.js';
-import { setupAutocomplete } from './autocomplete.js';
+import { createMap, updateMapAndList } from "./map.js";
+import { setupAutocomplete } from "./autocomplete.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   const mapEl = document.getElementById("store-map");
@@ -20,22 +19,27 @@ document.addEventListener("DOMContentLoaded", () => {
   function fetchAndUpdate(coords) {
     const radiusKm = parseInt(radiusSelect.value, 10);
     fetch("{{ 'stores.json' | asset_url }}")
-      .then(res => res.json())
-      .then(data => {
-        updateMapAndList({ map, resultsEl, markers }, coords, data.stores, radiusKm);
+      .then((res) => res.json())
+      .then((data) => {
+        updateMapAndList(
+          { map, resultsEl, markers },
+          coords,
+          data.stores,
+          radiusKm,
+        );
       });
   }
 
   locateBtn.addEventListener("click", () => {
     navigator.geolocation.getCurrentPosition(
-      position => {
+      (position) => {
         selectedCoords = {
           lat: position.coords.latitude,
-          lng: position.coords.longitude
+          lng: position.coords.longitude,
         };
         fetchAndUpdate(selectedCoords);
       },
-      () => alert("Location access denied or unavailable.")
+      () => alert("Location access denied or unavailable."),
     );
   });
 
@@ -47,7 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
     fetchAndUpdate(selectedCoords);
   });
 
-  setupAutocomplete(locationInput, suggestionBox, coords => {
+  setupAutocomplete(locationInput, suggestionBox, (coords) => {
     selectedCoords = coords;
   });
 });

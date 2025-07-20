@@ -39,6 +39,8 @@ export const loader = async ({ request }) => {
 export const action = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   const prisma = (await import("../db.server")).default;
+  const { session } = await authenticate.admin(request);
+
   const formData = await request.formData();
   const data = Object.fromEntries(formData);
 
@@ -50,6 +52,7 @@ export const action = async ({ request }) => {
     data: {
       shop: session.shop, // GDPR compliance: associate with current shop
       name: data.name,
+      shop: session.shop,
       link: data.link || null,
       address: data.address,
       address2: data.address2,
