@@ -6,10 +6,13 @@ This document explains how to use the environment management system for the Stor
 
 The environment management system consists of:
 
-1. **Environment Switching Script** (`scripts/switch-env.sh`) - Switches between dev/prod environments
-2. **Shopify Configuration Setup** (`scripts/setup-shopify-configs.sh`) - Sets up Shopify app configurations
-3. **Database Configuration** (`app/config/database.js`) - Handles environment-specific database URLs
-4. **NPM Scripts** - Convenient commands for environment management
+1. **Cross-Platform Environment Switching Script** (`scripts/switch-env.js`) - Switches between dev/prod environments (works on Windows, macOS, Linux)
+2. **Platform-Specific Launchers** - `scripts/switch-env.cmd` (Windows) and `scripts/switch-env` (Unix/macOS)
+3. **Shopify Configuration Setup** (`scripts/setup-shopify-configs.sh`) - Sets up Shopify app configurations
+4. **Database Configuration** (`app/config/database.js`) - Handles environment-specific database URLs
+5. **NPM Scripts** - Convenient commands for environment management
+
+> **Note**: The original `scripts/switch-env.sh` script is kept for reference but the new cross-platform Node.js version is recommended for all platforms.
 
 ## Quick Start
 
@@ -37,13 +40,21 @@ npm run env:validate
 
 ### Environment Switching Script
 
-The main script (`scripts/switch-env.sh`) provides the following commands:
+The main cross-platform script (`scripts/switch-env.js`) provides the following commands:
 
 #### Switch to Development
 ```bash
-./scripts/switch-env.sh development
+# Using npm scripts (recommended)
+npm run env:dev
+
+# Using Node.js directly
+node scripts/switch-env.js development
 # or
-./scripts/switch-env.sh dev
+node scripts/switch-env.js dev
+
+# Using platform-specific launchers
+./scripts/switch-env development  # Unix/macOS
+scripts\switch-env.cmd development  # Windows
 ```
 
 **What it does:**
@@ -53,9 +64,17 @@ The main script (`scripts/switch-env.sh`) provides the following commands:
 
 #### Switch to Production
 ```bash
-./scripts/switch-env.sh production
+# Using npm scripts (recommended)
+npm run env:prod
+
+# Using Node.js directly
+node scripts/switch-env.js production
 # or
-./scripts/switch-env.sh prod
+node scripts/switch-env.js prod
+
+# Using platform-specific launchers
+./scripts/switch-env production  # Unix/macOS
+scripts\switch-env.cmd production  # Windows
 ```
 
 **What it does:**
@@ -65,7 +84,15 @@ The main script (`scripts/switch-env.sh`) provides the following commands:
 
 #### Check Status
 ```bash
-./scripts/switch-env.sh status
+# Using npm scripts (recommended)
+npm run env:status
+
+# Using Node.js directly
+node scripts/switch-env.js status
+
+# Using platform-specific launchers
+./scripts/switch-env status  # Unix/macOS
+scripts\switch-env.cmd status  # Windows
 ```
 
 **What it shows:**
@@ -75,7 +102,15 @@ The main script (`scripts/switch-env.sh`) provides the following commands:
 
 #### Validate Setup
 ```bash
-./scripts/switch-env.sh validate
+# Using npm scripts (recommended)
+npm run env:validate
+
+# Using Node.js directly
+node scripts/switch-env.js validate
+
+# Using platform-specific launchers
+./scripts/switch-env validate  # Unix/macOS
+scripts\switch-env.cmd validate  # Windows
 ```
 
 **What it checks:**
@@ -242,6 +277,27 @@ shopify app config list
 # Check environment variables
 cat env | grep ENVIRONMENT
 ```
+
+## Cross-Platform Compatibility
+
+The environment switching script now works on all major platforms:
+
+### Windows
+- Use `npm run env:dev` (recommended)
+- Use `node scripts/switch-env.js development`
+- Use `scripts\switch-env.cmd development` (Windows batch file)
+
+### macOS/Linux
+- Use `npm run env:dev` (recommended)
+- Use `node scripts/switch-env.js development`
+- Use `./scripts/switch-env development` (Unix launcher)
+
+### Requirements
+- Node.js (version 18.20 or higher)
+- Shopify CLI installed globally
+- Valid `env` file with database URLs
+
+For detailed information about the cross-platform implementation, see [Cross-Platform Environment Switcher](./cross-platform-environment-switcher.md).
 
 ## Best Practices
 

@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Store Locator Environment Switcher - Universal Launcher
+# This script detects the platform and launches the appropriate environment switcher
+
+set -e
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Change to project root directory
+cd "$PROJECT_ROOT"
+
+# Check if Node.js is available
+if ! command -v node &> /dev/null; then
+    echo "[ERROR] Node.js is not installed or not in PATH"
+    echo "Please install Node.js from https://nodejs.org/"
+    exit 1
+fi
+
+# Launch the Node.js script with all arguments
+node "$SCRIPT_DIR/switch-env.js" "$@" 
