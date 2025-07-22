@@ -47,12 +47,12 @@ export const action = async ({ request }) => {
 
   const newStore = await prisma.store.create({
     data: {
-      name: data.name,
+      name: data.name?.toUpperCase(),
       shop: session.shop,
       link: data.link || null,
-      address: data.address,
-      address2: data.address2,
-      city: data.city,
+      address: data.address?.toUpperCase(),
+      address2: data.address2?.toUpperCase(),
+      city: data.city?.toUpperCase(),
       state: data.state,
       zip: data.zip,
       lat: data.lat ? parseFloat(data.lat) : null,
