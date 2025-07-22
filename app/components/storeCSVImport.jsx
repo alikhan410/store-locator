@@ -29,6 +29,7 @@ export default function StoreCSVImport({ onImport }) {
               lng: row["Longitude"],
               phone: row["Phone"],
               link: row["Link"],
+              notes: row["Notes"],
             }));
             onImport(parsedStores);
           },
