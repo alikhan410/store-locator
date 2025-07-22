@@ -84,6 +84,7 @@ export const action = async ({ request }) => {
             store.lng !== undefined && store.lng !== null
               ? parseFloat(store.lng)
               : null,
+          notes: store.notes?.trim() || null,
         });
       }
     });
