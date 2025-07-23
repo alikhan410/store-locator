@@ -302,8 +302,9 @@ export default function StoreCSVImport({ onImport, onClose }) {
           </Card>
 
           {/* Error Display */}
+          {/* TODO: Provide better User experince for error, rn it does not throw error in face? */}
           {errors.length > 0 && (
-            <Banner status="critical">
+            <Banner  title="Encountered errors while importing" tone="critical">
               <BlockStack gap="200">
                 {errors.map((error, index) => (
                   <Text key={index} variant="bodyMd">{error}</Text>
