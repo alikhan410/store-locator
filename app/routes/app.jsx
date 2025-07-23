@@ -33,7 +33,7 @@ export default function App() {
     <AppProvider isEmbeddedApp apiKey={apiKey}>
       <NavMenu>
         <Link to="/app" rel="home" aria-label="Store Locator Home">
-          🏪 Store Locator
+          Store Locator
         </Link>
         <Link to="/app/add-store" aria-label="Add a new store location">
           Add a store
@@ -42,26 +42,26 @@ export default function App() {
           View all stores
         </Link>
         <Link to="/app/map" aria-label="View stores on interactive map">
-          🗺️ Map
+          Map
         </Link>
         <Link to="/app/gdpr" aria-label="Data privacy and GDPR settings">
-          🔒 Privacy & GDPR
+          Privacy & GDPR
         </Link>
         <Link to="/app/billing" aria-label="Billing and subscription settings">
           Billing
         </Link>
         <Link to="/privacy-policy" target="_blank" aria-label="Privacy Policy (opens in new window)">
-          📄 Privacy Policy
+          Privacy Policy
         </Link>
         <Link to="/terms-of-service" target="_blank" aria-label="Terms of Service (opens in new window)">
-          📋 Terms of Service
+          Terms of Service
         </Link>
         <Link 
           to={contactUrl} 
           target="_blank" 
           aria-label="Contact Support (opens in new window)"
         >
-          💬 Support
+          Support
         </Link>
       </NavMenu>
       <main id="main-content" role="main" aria-label="Main content">
