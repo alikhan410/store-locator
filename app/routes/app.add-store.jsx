@@ -12,10 +12,11 @@ import {
   ButtonGroup,
   Box,
   Spinner,
+  Banner,
 } from "@shopify/polaris";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
+import { TitleBar } from "@shopify/app-bridge-react";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { Form, useActionData, useLoaderData } from "@remix-run/react";
 import { stateOptions } from "../helper/options";
@@ -23,6 +24,7 @@ import { loadGoogleMaps } from "../helper/loadGoogleMaps";
 import { cleanupGoogleMapsInstances } from "../helper/googleMapsLoader";
 import { authenticate } from "../shopify.server";
 import { accessibilityUtils } from "../helper/accessibility";
+// import { checkStoreLimit } from "../helper/planLimits";
 
 const formatPhone = (value) => {
   const phone = parsePhoneNumberFromString(value, "US");
@@ -30,29 +32,74 @@ const formatPhone = (value) => {
 };
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
+  console.log("[LOADER] Entered app.add-store loader");
+  const { session, billing } = await authenticate.admin(request);
+  console.log("[LOADER] Session shop:", session.shop);
+  const prisma = (await import("../db.server")).default;
+  const { checkStoreLimit } = await import("../helper/planLimits");
+
+  // Check plan limits
+  const { appSubscriptions } = await billing.check();
+  const subscription = appSubscriptions?.[0];
+  console.log("[LOADER] Subscription:", subscription);
+
+  const currentStoreCount = await prisma.store.count({
+    where: { shop: session.shop },
+  });
+  console.log("[LOADER] Current store count:", currentStoreCount);
+
+  const limitCheck = checkStoreLimit(subscription, currentStoreCount);
+  console.log("[LOADER] Limit check:", limitCheck);
+
   return {
     googleMapsApiKey: process.env.GOOGLE_MAPS_PUBLIC_KEY,
+    subscription,
+    limitCheck,
+    currentStoreCount,
   };
 };
 
 export const action = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  console.log("[ACTION] Entered app.add-store action");
+  const { session, billing } = await authenticate.admin(request);
+  console.log("[ACTION] Session shop:", session.shop);
+  const { checkStoreLimit } = await import("../helper/planLimits");
   const prisma = (await import("../db.server")).default;
-  const { session } = await authenticate.admin(request);
 
   const formData = await request.formData();
   const data = Object.fromEntries(formData);
+  console.log("[ACTION] Form data:", data);
 
   if (!data.name || !data.address || !data.state || !data.city || !data.zip) {
+    console.log("[ACTION] Missing required fields");
     return { success: false, error: "Missing required fields" };
+  }
+
+  // Check plan limits
+  const { appSubscriptions } = await billing.check();
+  const subscription = appSubscriptions?.[0];
+  console.log("[ACTION] Subscription:", subscription);
+
+  const currentStoreCount = await prisma.store.count({
+    where: { shop: session.shop },
+  });
+  console.log("[ACTION] Current store count:", currentStoreCount);
+
+  const limitCheck = checkStoreLimit(subscription, currentStoreCount);
+  console.log("[ACTION] Limit check:", limitCheck);
+
+  if (!limitCheck.canAdd) {
+    console.log("[ACTION] Cannot add store:", limitCheck.error);
+    return {
+      success: false,
+      error: limitCheck.error,
+    };
   }
 
   const newStore = await prisma.store.create({
     data: {
       shop: session.shop, // GDPR compliance: associate with current shop
       name: data.name,
-      shop: session.shop,
       link: data.link || null,
       address: data.address,
       address2: data.address2,
@@ -65,13 +112,13 @@ export const action = async ({ request }) => {
       phone: data.phone || null,
     },
   });
-  console.log("coming from app.add-store.jsx | data is: ", newStore);
+  console.log("[ACTION] Store created:", newStore);
   return { success: true };
 };
 
 export default function AddStore() {
   const action = useActionData();
-  const { googleMapsApiKey } = useLoaderData();
+  const { googleMapsApiKey, subscription, limitCheck, currentStoreCount } = useLoaderData();
   const [isClientState, setIsClientState] = useState(false);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [isAutocompleteLoaded, setIsAutocompleteLoaded] = useState(false);
@@ -112,12 +159,12 @@ export default function AddStore() {
 
   // Accessibility setup
   useEffect(() => {
-    accessibilityUtils.announcePageChange('Add New Store Location');
+    accessibilityUtils.announcePageChange("Add New Store Location");
   }, []);
 
   //Feedback when data is saved
   useEffect(() => {
-    if (action?.success) {
+    if (action?.success == true) {
       shopify.toast.show("Store saved successfully! 🎉");
       setFormData({
         name: "",
@@ -133,7 +180,7 @@ export default function AddStore() {
         phone: "",
         hours: "",
       });
-    } else if (action?.error) {
+    } else if (action?.success == false) {
       shopify.toast.show(action.error, { isError: true });
     }
   }, [action]);
@@ -344,6 +391,68 @@ export default function AddStore() {
   return (
     <Page title="Add Store">
       <TitleBar title="Store Location Form" />
+      
+      {/* Plan Limit Warning */}
+      {!limitCheck.canAdd && (
+        <Banner
+          title="Cannot Add Store"
+          tone="critical"
+          // action={
+          // { content: "Upgrade Plan", 
+          //     url: "https://admin.shopify.com/charges/store-locator-176/pricing_plans", 
+          //     external:true }  
+          //   }
+        >
+          <p>{limitCheck.error}</p>
+          <p>
+            <a
+              href="https://admin.shopify.com/charges/store-locator-176/pricing_plans"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Upgrade Plan
+            </a>
+          </p>
+        </Banner>
+      )}
+
+      {/* Near Limit Warning */}
+      {limitCheck.canAdd && limitCheck.remaining <= 3 && (
+        <Banner
+          title="Approaching Store Limit"
+          tone="warning"
+        >
+          <p>
+            You have {limitCheck.remaining} store slot{limitCheck.remaining === 1 ? "" : "s"} remaining. Consider upgrading your plan.
+          </p>
+          <p>
+            <a
+              href="https://admin.shopify.com/charges/store-locator-176/pricing_plans"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Upgrade Plan
+            </a>
+          </p>
+        </Banner>
+      )}
+
+      {/* Store Slots Remaining Indicator */}
+      {limitCheck.canAdd && (
+        <Box marginBlockEnd="4">
+          <Banner tone="success">
+            <Text as="span" fontWeight="semibold">
+              {`You have ${limitCheck.remaining} store slot${limitCheck.remaining === 1 ? '' : 's'} remaining out of ${limitCheck.limit}.`}
+            </Text>
+            <div>
+              <Text as="span" tone="subdued" variant="bodySm">
+                Manage your locations efficiently. Upgrade your plan if you need more slots.
+              </Text>
+            </div>
+          </Banner>
+        </Box>
+      )}
+
       <Layout>
         <Layout.Section>
           <Card title="Store Information" sectioned>
@@ -558,8 +667,8 @@ export default function AddStore() {
 
                 <InlineStack align="end">
                   <ButtonGroup>
-                    <Button 
-                      submit 
+                    <Button
+                      submit
                       variant="primary"
                       aria-label="Save store information and create new store location"
                     >
