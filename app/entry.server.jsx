@@ -1,5 +1,5 @@
 // Import database configuration early to set up environment-specific database URLs
-import "./config/database.js";
+import { environment, databaseUrl, isProduction, isDevelopment, isTest } from "./config/database.js";
 
 import { PassThrough } from "stream";
 import { renderToPipeableStream } from "react-dom/server";

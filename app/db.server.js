@@ -1,5 +1,4 @@
-// Import database configuration to ensure correct database URL is set
-import "./config/database.js";
+import { environment, databaseUrl, isProduction, isDevelopment, isTest } from "./config/database.js";
 import { PrismaClient } from "@prisma/client";
 
 if (process.env.NODE_ENV !== "production") {

@@ -1,7 +1,7 @@
-/**
- * Database configuration that handles environment-specific database URLs
- * This allows us to use different databases for development and production
- */
+// /**
+//  * Database configuration that handles environment-specific database URLs
+//  * This allows us to use different databases for development and production
+//  */
 
 const environment = process.env.ENVIRONMENT || 'development';
 
@@ -29,10 +29,8 @@ const getDatabaseUrl = () => {
 // Set the DATABASE_URL environment variable for Prisma
 process.env.DATABASE_URL = getDatabaseUrl();
 
-module.exports = {
-  environment,
-  databaseUrl: getDatabaseUrl(),
-  isProduction: environment === 'production',
-  isDevelopment: environment === 'development',
-  isTest: environment === 'test',
-}; 
+export { environment };
+export const databaseUrl = getDatabaseUrl();
+export const isProduction = environment === 'production';
+export const isDevelopment = environment === 'development';
+export const isTest = environment === 'test'; 
