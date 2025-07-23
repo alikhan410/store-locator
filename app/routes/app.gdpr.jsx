@@ -158,7 +158,7 @@ export default function GDPRPage() {
                   <Text variant="bodyMd" as="p">
                     Total stores in your account:
                   </Text>
-                  <Badge status="info">{storeCount}</Badge>
+                  <Badge tone="info">{storeCount}</Badge>
                 </InlineStack>
                 <InlineStack align="space-between">
                   <Text variant="bodyMd" as="p">
