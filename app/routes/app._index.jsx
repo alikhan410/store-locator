@@ -29,6 +29,7 @@ import {
   ListBulletedIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import styles from "./_index/styles.module.css";
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
@@ -177,7 +178,7 @@ export default function Index() {
                         <Text variant="headingMd" as="h2">
                           Store Coverage
                         </Text>
-                        <Badge status="info">{metrics.uniqueStatesCount}</Badge>
+                        <Badge tone="info">{metrics.uniqueStatesCount}</Badge>
                       </InlineStack>
                       <Text variant="heading2xl" as="p">
                         {metrics.uniqueStatesCount}
@@ -197,7 +198,7 @@ export default function Index() {
                           Geocoded
                         </Text>
                         <Badge
-                          status={
+                          tone={
                             metrics.geocodedPercent === 100
                               ? "success"
                               : "warning"
@@ -330,8 +331,8 @@ export default function Index() {
                     </InlineStack>
                     {stores.length > 0 ? (
                       <List>
-                        {stores.slice(0, 5).map((store) => (
-                          <List.Item key={store.id}>
+                        {stores.slice(0, 5).map((store, idx) => (
+                          <List.Item key={store.id} className={styles.recentActivityStoreItem}>
                             <InlineStack gap="200" align="space-between">
                               <BlockStack gap="100">
                                 <Text variant="bodyMd" fontWeight="medium">
@@ -374,19 +375,19 @@ export default function Index() {
                       <BlockStack gap="200">
                         <InlineStack align="space-between">
                           <Text variant="bodyMd">Total Stores</Text>
-                          <Badge>{metrics.totalStores}</Badge>
+                          <Badge tone="info">{metrics.totalStores}</Badge>
                         </InlineStack>
                         <InlineStack align="space-between">
                           <Text variant="bodyMd">With Phone</Text>
-                          <Badge status="info">{metrics.storesWithPhone}</Badge>
+                          <Badge tone="info">{metrics.storesWithPhone}</Badge>
                         </InlineStack>
                         <InlineStack align="space-between">
                           <Text variant="bodyMd">With Website</Text>
-                          <Badge status="info">{metrics.storesWithLink}</Badge>
+                          <Badge tone="info">{metrics.storesWithLink}</Badge>
                         </InlineStack>
                         <InlineStack align="space-between">
                           <Text variant="bodyMd">States Covered</Text>
-                          <Badge status="success">
+                          <Badge tone="success">
                             {metrics.uniqueStatesCount}
                           </Badge>
                         </InlineStack>
