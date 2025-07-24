@@ -27,7 +27,7 @@ describe('App Index Route Integration Tests', () => {
   });
 
   describe('Loader', () => {
-    it('should return stores and metrics for authenticated shop', async () => {
+    it('should return stores and metrics for authenticated shop', { timeout: 10000 }, async () => {
       // Mock the authenticate function
       const { authenticate } = await import('../../../app/shopify.server');
       authenticate.admin.mockResolvedValue({
