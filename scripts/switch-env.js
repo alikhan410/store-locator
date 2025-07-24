@@ -14,7 +14,7 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = join(__dirname, '..');
-
+const envPath = join(projectRoot, '.env');
 // Colors for output
 const colors = {
     red: '\x1b[31m',
@@ -65,7 +65,6 @@ const execCommand = (command, options = {}) => {
 
 // Read env file
 const readEnvFile = () => {
-    const envPath = join(projectRoot, 'env');
     if (!existsSync(envPath)) {
         throw new Error('env file not found');
     }
@@ -74,19 +73,55 @@ const readEnvFile = () => {
 
 // Write env file
 const writeEnvFile = (content) => {
-    const envPath = join(projectRoot, 'env');
+    // const envPath = join(projectRoot, '.env');
     writeFileSync(envPath, content, 'utf8');
 };
 
 // Update environment variable in env file
+// const updateEnvironment = (newEnv) => {
+//     const envContent = readEnvFile();
+//     const updatedContent = envContent.replace(
+//         /^ENVIRONMENT=.*$/m,
+//         `ENVIRONMENT=${newEnv}`
+//     );
+//     writeEnvFile(updatedContent);
+//     printSuccess(`Updated ENVIRONMENT=${newEnv} in env file`);
+// };
+
 const updateEnvironment = (newEnv) => {
-    const envContent = readEnvFile();
-    const updatedContent = envContent.replace(
+    let envContent = readEnvFile();
+
+    // Update ENVIRONMENT
+    envContent = envContent.replace(
         /^ENVIRONMENT=.*$/m,
         `ENVIRONMENT=${newEnv}`
     );
-    writeEnvFile(updatedContent);
-    printSuccess(`Updated ENVIRONMENT=${newEnv} in env file`);
+
+    // Find existing dev/prod database URLs
+    const devDbMatch = envContent.match(/PRISMA_POSTGRES_DATABASE_URL_DEV\s*=\s*"?([^"\n]+)"?/);
+    const prodDbMatch = envContent.match(/PRISMA_POSTGRES_DATABASE_URL_PROD\s*=\s*"?([^"\n]+)"?/);
+
+    // Decide which URL to set as DATABASE_URL
+    const dbUrl = newEnv === 'production' ? (prodDbMatch?.[1] || '') : (devDbMatch?.[1] || '');
+
+    if (!dbUrl) {
+        printWarning(`Could not find database URL for ${newEnv} in .env`);
+    }
+
+    // Update or add DATABASE_URL
+    if (envContent.match(/^DATABASE_URL=.*$/m)) {
+        envContent = envContent.replace(
+            /^DATABASE_URL=.*$/m,
+            `DATABASE_URL=${dbUrl}`
+        );
+    } else {
+        envContent += `\nDATABASE_URL=${dbUrl}`;
+    }
+
+    // Write back to .env file
+    writeEnvFile(envContent);
+
+    printSuccess(`Updated ENVIRONMENT=${newEnv} and DATABASE_URL in .env file`);
 };
 
 // Get current environment
@@ -133,7 +168,7 @@ const showStatus = () => {
     console.log('');
     
     // Check env file
-    const envPath = join(projectRoot, 'env');
+    const envPath = join(projectRoot, '.env');
     if (existsSync(envPath)) {
         const currentEnv = getCurrentEnvironment();
         console.log(`  Environment File: ${colors.green}env${colors.reset}`);
@@ -218,7 +253,7 @@ const validateEnvironment = () => {
     printStatus('Validating environment setup...');
     
     // Check required files
-    const envPath = join(projectRoot, 'env');
+    const envPath = join(projectRoot, '.env');
     const shopifyConfigPath = join(projectRoot, 'shopify.app.toml');
     
     if (!existsSync(envPath)) {
