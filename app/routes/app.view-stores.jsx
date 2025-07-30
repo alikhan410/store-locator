@@ -23,6 +23,9 @@ import { states } from "../helper/states";
 import { exportAllStoresToCSV, exportFilteredStoresToCSV } from "../helper/exportAction";
 import StoreCSVImport from "../components/storeCSVImport";
 import { authenticate } from "../shopify.server";
+// https://polaris-react.shopify.com/icons  
+import { DeleteIcon,EditIcon,ExportIcon,ImportIcon,ArchiveIcon,GlobeIcon } from '@shopify/polaris-icons';
+import ExportModal from "../components/ExportModal";
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
@@ -41,8 +44,9 @@ export const loader = async ({ request }) => {
 export default function StoresPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [showImportModal, setShowImportModal] = useState(false);
+  // const [showImportModal, setShowImportModal] = useState(false);
   const [exportPopoverActive, setExportPopoverActive] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const navigate = useNavigate();
 
   const itemsPerPage = 50;
@@ -304,6 +308,37 @@ export default function StoresPage() {
       disabled: filteredStores.length === allStores.length && appliedFilters.length === 0,
     },
   ];
+  const promotedBulkActions = [
+    {
+      icon: ExportIcon,
+      content: `Export (${filteredStores.length})`,
+      onAction: handleExportFiltered,
+    },
+  ];
+    const bulkActions = [
+    {
+      icon: ExportIcon,
+      content: `Export all stores (${allStores.length})`,
+      onAction: handleExportAll,
+    },
+    {
+      icon: ExportIcon,
+      content: `Export filtered stores (${filteredStores.length})`,
+      onAction: handleExportFiltered,
+      disabled: filteredStores.length === allStores.length && appliedFilters.length === 0,
+    },
+    {
+      icon: EditIcon,
+      content: 'Edit stores',
+      onAction: () => console.log('Todo: implement bulk edit stores'),
+    },
+    {
+      icon: DeleteIcon,
+      destructive: true,
+      content: 'Delete stores',
+      onAction: () => console.log('Todo: implement bulk delete stores'),
+    },
+  ];
 
   const resourceName = {
     singular: "store",
@@ -359,6 +394,11 @@ export default function StoresPage() {
       </div>
     );
   }
+
+  const handleExportModalClose = () => {
+    shopify.modal.hide('export-modal')
+  };
+
   return (
     <Page
       title={"Stores"}
@@ -366,18 +406,27 @@ export default function StoresPage() {
         content: "Add a store",
         onAction: () => navigate("/app/add-store"),
       }}
-              secondaryActions={[
-          {
-            content: "🗺️ Map View",
-            accessibilityLabel: "View stores on map",
-            onAction: () => navigate("/app/map"),
-          },
-          {
-            content: "Import",
-            accessibilityLabel: "Import store list",
-            onAction: () => setShowImportModal(true),
-          },
-        ]}
+      secondaryActions={[
+        {
+          icon: GlobeIcon,
+          content: "Map View",
+          accessibilityLabel: "View stores on map",
+          onAction: () => navigate("/app/map"),
+        },
+        {
+          icon: ExportIcon,
+          content: "Export",
+          accessibilityLabel: "export store list",
+          onAction: () => shopify.modal.show('export-modal')
+        },
+        {
+          icon: ImportIcon,
+          content: "Import",
+          accessibilityLabel: "Import store list",
+          onAction: () => shopify.modal.show('import-csv-modal')
+          
+        },
+      ]}
     >
       <Card>
         {
@@ -398,7 +447,7 @@ export default function StoresPage() {
         }
         
         {/* Export Button with Popover */}
-        <Box padding="400" paddingBlockStart="200">
+        {/* <Box padding="400" paddingBlockStart="200">
           <Popover
             active={exportPopoverActive}
             activator={
@@ -418,7 +467,7 @@ export default function StoresPage() {
               items={exportActions}
             />
           </Popover>
-        </Box>
+        </Box> */}
         
         <IndexTable
           resourceName={resourceName}
@@ -440,6 +489,8 @@ export default function StoresPage() {
             // { title: "Actions" },
           ]}
           selectable
+          bulkActions={bulkActions}
+          promotedBulkActions={promotedBulkActions}
         >
           {rowMarkup}
         </IndexTable>
@@ -464,9 +515,26 @@ export default function StoresPage() {
           />
         </div>
       </Card>
-      {showImportModal && (
+  
+      <StoreCSVImport onImport={onImport} onClose={() => shopify.modal.hide('import-csv-modal')} />
+
+            {/* {showImportModal && (
         <StoreCSVImport onImport={onImport} onClose={() => setShowImportModal(false)} />
-      )}
+      )} */}
+      <ExportModal
+        onClose={handleExportModalClose}
+        onExport={handleExportModalClose}
+        exportCounts={{
+          current: paginatedStores.length,
+          all: allStores.length,
+          selected: selectedResources.length,
+          filtered: filteredStores.length,
+        }}
+        selectedCount={selectedResources.length}
+        filteredCount={filteredStores.length}
+        canExportSelected={true}
+        canExportFiltered={true}
+      />
     </Page>
   );
 }

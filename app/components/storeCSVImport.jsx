@@ -10,10 +10,10 @@ import {
   DataTable,
   Banner,
   Spinner,
-  Modal,
   TextField,
   List
 } from "@shopify/polaris";
+import { Modal, TitleBar } from '@shopify/app-bridge-react';
 import { NoteIcon } from "@shopify/polaris-icons";
 import { useState, useCallback, useMemo } from "react";
 import Papa from "papaparse";
@@ -269,174 +269,170 @@ export default function StoreCSVImport({ onImport, onClose }) {
     });
   }, [previewData, fieldMappings]);
 
-  return (
-    <Modal
-      open={true}
-      onClose={onClose}
-      title="Import Stores from CSV"
-      primaryAction={{
-        content: "Import Stores",
-        onAction: handleImport,
-        loading: isProcessing,
-        disabled: !file || parsedData.length === 0 || errors.length > 0
-      }}
-      secondaryActions={[
-        {
-          content: "Cancel",
-          onAction: onClose
-        }
-      ]}
-      large
-    >
-      <Modal.Section>
-        <BlockStack gap="400">
-          {/* File Upload */}
-          <Card>
-            <BlockStack gap="300">
-              <Text variant="headingMd" as="h3">Upload CSV File</Text>
-              <DropZone accept=".csv" allowMultiple={false} onDrop={handleDropZoneDrop}>
-                {uploadedFile}
-                {fileUpload}
-              </DropZone>
-            </BlockStack>
-          </Card>
+  // Use a single close handler for all close actions
+  const handleClose = () => {
+    if (onClose) onClose();
+  };
 
-          {/* Error Display */}
-          {/* TODO: Provide better User experince for error, rn it does not throw error in face? */}
-          {errors.length > 0 && (
-            <Banner  title="Encountered errors while importing" tone="critical">
-              <BlockStack gap="200">
-                {errors.map((error, index) => (
-                  <Text key={index} variant="bodyMd">{error}</Text>
+  return (
+    <Modal id="import-csv-modal" onClose={handleClose} large>
+      <TitleBar title="Import Stores from CSV" onClose={handleClose} />
+      <BlockStack gap="400" padding="400">
+        {/* File Upload */}
+        <Card>
+          <BlockStack gap="300">
+            <Text variant="headingMd" as="h3">Upload CSV File</Text>
+            <DropZone accept=".csv" allowMultiple={false} onDrop={handleDropZoneDrop}>
+              {uploadedFile}
+              {fileUpload}
+            </DropZone>
+          </BlockStack>
+        </Card>
+
+        {/* Error Display */}
+        {errors.length > 0 && (
+          <Banner  title="Encountered errors while importing" tone="critical">
+            <BlockStack gap="200">
+              {errors.map((error, index) => (
+                <Text key={index} variant="bodyMd">{error}</Text>
+              ))}
+            </BlockStack>
+          </Banner>
+        )}
+
+        {/* Field Mapping */}
+        {csvHeaders.length > 0 && (
+          <Card>
+            <BlockStack gap="400">
+              <Text variant="headingMd" as="h3">Map CSV Fields</Text>
+              <Text variant="bodyMd" as="p">
+                Map your CSV columns to the expected store fields. Required fields are marked with an asterisk (*). 
+                The system tries to auto-map common column names, but you can adjust the mappings below.
+              </Text>
+              <Banner status="info">
+                <Text variant="bodyMd" as="p">
+                  <strong>Tip:</strong> Don't worry about column order! The system maps by column names, not positions. 
+                  Common variations like "Store Name", "Business Name", "Company" will be auto-detected.
+                </Text>
+              </Banner>
+              <BlockStack gap="300">
+                {EXPECTED_FIELDS.map((field) => (
+                  <InlineStack key={field.key} align="space-between" gap="400">
+                    <InlineStack gap="200" align="center">
+                      <Text variant="bodyMd" as="span">
+                        {field.label} {field.required && <Text variant="bodyMd" as="span" color="critical">*</Text>}
+                      </Text>
+                      {autoMappedFields.has(field.key) && fieldMappings[field.key] && (
+                        <Text variant="bodySm" as="span" color="success">
+                          ✓ Auto-mapped
+                        </Text>
+                      )}
+                    </InlineStack>
+                    <div style={{ minWidth: "200px" }}>
+                      <Select
+                        label=""
+                        labelHidden
+                        options={mappingOptions}
+                        value={fieldMappings[field.key] || ""}
+                        onChange={(value) => handleFieldMappingChange(field.key, value)}
+                      />
+                    </div>
+                  </InlineStack>
                 ))}
               </BlockStack>
-            </Banner>
-          )}
+            </BlockStack>
+          </Card>
+        )}
 
-          {/* Field Mapping */}
-          {csvHeaders.length > 0 && (
-            <Card>
-              <BlockStack gap="400">
-                <Text variant="headingMd" as="h3">Map CSV Fields</Text>
-                <Text variant="bodyMd" as="p">
-                  Map your CSV columns to the expected store fields. Required fields are marked with an asterisk (*). 
-                  The system tries to auto-map common column names, but you can adjust the mappings below.
-                </Text>
-                <Banner status="info">
-                  <Text variant="bodyMd" as="p">
-                    <strong>Tip:</strong> Don't worry about column order! The system maps by column names, not positions. 
-                    Common variations like "Store Name", "Business Name", "Company" will be auto-detected.
+        {/* Data Preview */}
+        {previewData.length > 0 && (
+          <Card>
+            <BlockStack gap="300">
+              <Text variant="headingMd" as="h3">Data Preview</Text>
+              <Text variant="bodyMd" as="p">
+                Preview of how your data will be imported (showing first 5 rows):
+              </Text>
+              <DataTable
+                columnContentTypes={EXPECTED_FIELDS.map(() => 'text')}
+                headings={EXPECTED_FIELDS.map(field => field.label)}
+                rows={previewRows}
+              />
+              <Text variant="bodySm" as="p" color="subdued">
+                Total rows to import: {parsedData.length}
+              </Text>
+            </BlockStack>
+          </Card>
+        )}
+
+        {/* Processing State */}
+        {isProcessing && (
+          <Banner status="info">
+            <InlineStack gap="200" align="center">
+              <Spinner size="small" />
+              <Text variant="bodyMd">Processing import...</Text>
+            </InlineStack>
+          </Banner>
+        )}
+
+        {/* Import Results */}
+        {importResults && (
+          <Card>
+            <BlockStack gap="300">
+              <Text variant="headingMd" as="h3">Import Results</Text>
+              <Banner status={importResults.partial ? "warning" : "success"}>
+                <BlockStack gap="200">
+                  <Text variant="bodyMd">
+                    <strong>Successfully imported:</strong> {importResults.imported} stores
                   </Text>
-                </Banner>
-                
-                                  <BlockStack gap="300">
-                    {EXPECTED_FIELDS.map((field) => (
-                      <InlineStack key={field.key} align="space-between" gap="400">
-                        <InlineStack gap="200" align="center">
-                          <Text variant="bodyMd" as="span">
-                            {field.label} {field.required && <Text variant="bodyMd" as="span" color="critical">*</Text>}
-                          </Text>
-                          {autoMappedFields.has(field.key) && fieldMappings[field.key] && (
-                            <Text variant="bodySm" as="span" color="success">
-                              ✓ Auto-mapped
-                            </Text>
-                          )}
-                        </InlineStack>
-                        <div style={{ minWidth: "200px" }}>
-                          <Select
-                            label=""
-                            labelHidden
-                            options={mappingOptions}
-                            value={fieldMappings[field.key] || ""}
-                            onChange={(value) => handleFieldMappingChange(field.key, value)}
-                          />
-                        </div>
-                      </InlineStack>
-                    ))}
-                  </BlockStack>
-              </BlockStack>
-            </Card>
-          )}
-
-          {/* Data Preview */}
-          {previewData.length > 0 && (
-            <Card>
-              <BlockStack gap="300">
-                <Text variant="headingMd" as="h3">Data Preview</Text>
-                <Text variant="bodyMd" as="p">
-                  Preview of how your data will be imported (showing first 5 rows):
-                </Text>
-                
-                <DataTable
-                  columnContentTypes={EXPECTED_FIELDS.map(() => 'text')}
-                  headings={EXPECTED_FIELDS.map(field => field.label)}
-                  rows={previewRows}
-                />
-                
-                <Text variant="bodySm" as="p" color="subdued">
-                  Total rows to import: {parsedData.length}
-                </Text>
-              </BlockStack>
-            </Card>
-          )}
-
-          {/* Processing State */}
-          {isProcessing && (
-            <Banner status="info">
-              <InlineStack gap="200" align="center">
-                <Spinner size="small" />
-                <Text variant="bodyMd">Processing import...</Text>
-              </InlineStack>
-            </Banner>
-          )}
-
-          {/* Import Results */}
-          {importResults && (
-            <Card>
-              <BlockStack gap="300">
-                <Text variant="headingMd" as="h3">Import Results</Text>
-                
-                <Banner status={importResults.partial ? "warning" : "success"}>
-                  <BlockStack gap="200">
+                  {importResults.skipped > 0 && (
                     <Text variant="bodyMd">
-                      <strong>Successfully imported:</strong> {importResults.imported} stores
+                      <strong>Skipped due to errors:</strong> {importResults.skipped} stores
                     </Text>
-                    {importResults.skipped > 0 && (
-                      <Text variant="bodyMd">
-                        <strong>Skipped due to errors:</strong> {importResults.skipped} stores
-                      </Text>
-                    )}
-                  </BlockStack>
-                </Banner>
+                  )}
+                </BlockStack>
+              </Banner>
+              {importResults.errors && importResults.errors.length > 0 && (
+                <Button
+                  onClick={() => setShowErrorReport(true)}
+                  variant="secondary"
+                >
+                  View Error Report ({importResults.errors.length} rows)
+                </Button>
+              )}
+            </BlockStack>
+          </Card>
+        )}
 
-                {importResults.errors && importResults.errors.length > 0 && (
-                  <Button
-                    onClick={() => setShowErrorReport(true)}
-                    variant="secondary"
-                  >
-                    View Error Report ({importResults.errors.length} rows)
-                  </Button>
-                )}
-              </BlockStack>
-            </Card>
-          )}
+        {/* Error Report */}
+        {showErrorReport && failedRows.length > 0 && (
+          <ErrorReportModal
+            failedRows={failedRows}
+            fieldMappings={fieldMappings}
+            onClose={() => setShowErrorReport(false)}
+            onRetryImport={(fixedRows) => {
+              // Re-import the fixed rows
+              const fixedStores = fixedRows.map(row => row.mappedData);
+              onImport(fixedStores);
+              setShowErrorReport(false);
+            }}
+          />
+        )}
 
-          {/* Error Report */}
-          {showErrorReport && failedRows.length > 0 && (
-            <ErrorReportModal
-              failedRows={failedRows}
-              fieldMappings={fieldMappings}
-              onClose={() => setShowErrorReport(false)}
-              onRetryImport={(fixedRows) => {
-                // Re-import the fixed rows
-                const fixedStores = fixedRows.map(row => row.mappedData);
-                onImport(fixedStores);
-                setShowErrorReport(false);
-              }}
-            />
-          )}
-        </BlockStack>
-      </Modal.Section>
+        {/* Import/Cancel Buttons at the bottom */}
+        <InlineStack gap="400">
+          <Button
+            primary
+            onClick={handleImport}
+            loading={isProcessing}
+            disabled={!file || parsedData.length === 0 || errors.length > 0}
+          >
+            Import Stores
+          </Button>
+          <Button onClick={handleClose} variant="secondary">
+            Cancel
+          </Button>
+        </InlineStack>
+      </BlockStack>
     </Modal>
   );
 }
@@ -499,90 +495,86 @@ function ErrorReportModal({ failedRows, fieldMappings, onClose, onRetryImport })
     window.URL.revokeObjectURL(url);
   };
 
+  // Use a single close handler for all close actions
+  const handleClose = () => {
+    if (onClose) onClose();
+  };
+
   return (
-    <Modal
-      open={true}
-      onClose={onClose}
-      title="Import Error Report"
-      primaryAction={{
-        content: "Re-import Fixed Rows",
-        onAction: handleRetryImport,
-        loading: isProcessing,
-        disabled: editableRows.filter(row => row.fixed).length === 0
-      }}
-      secondaryActions={[
-        {
-          content: "Export Failed Rows",
-          onAction: exportFailedRows
-        },
-        {
-          content: "Close",
-          onAction: onClose
-        }
-      ]}
-      large
-    >
-      <Modal.Section>
-        <BlockStack gap="400">
-          <Banner status="warning">
-            <Text variant="bodyMd">
-              The following {failedRows.length} rows could not be imported due to validation errors. 
-              You can fix the data below and re-import, or export the failed rows to fix them externally.
-            </Text>
-          </Banner>
-
-          {editableRows.map((row, rowIndex) => (
-            <Card key={row.row}>
+    <Modal id="import-error-modal" onClose={handleClose} large>
+      <TitleBar title="Import Error Report" onClose={handleClose} />
+      <BlockStack gap="400" padding="400">
+        <Banner status="warning">
+          <Text variant="bodyMd">
+            The following {failedRows.length} rows could not be imported due to validation errors. 
+            You can fix the data below and re-import, or export the failed rows to fix them externally.
+          </Text>
+        </Banner>
+        {editableRows.map((row, rowIndex) => (
+          <Card key={row.row}>
+            <BlockStack gap="300">
+              <InlineStack align="space-between">
+                <Text variant="headingSm" as="h4">
+                  Row {row.row} - {row.originalData[Object.keys(row.originalData)[0]] || 'Unnamed Store'}
+                </Text>
+                {row.fixed && (
+                  <Text variant="bodySm" color="success">✓ Fixed</Text>
+                )}
+              </InlineStack>
+              {/* Error Messages */}
+              <Banner status="critical" title="Validation Errors">
+                <List>
+                  {row.errors.map((error, errorIndex) => (
+                    <List.Item key={errorIndex}>{error}</List.Item>
+                  ))}
+                </List>
+              </Banner>
+              {/* Editable Fields */}
               <BlockStack gap="300">
-                <InlineStack align="space-between">
-                  <Text variant="headingSm" as="h4">
-                    Row {row.row} - {row.originalData[Object.keys(row.originalData)[0]] || 'Unnamed Store'}
-                  </Text>
-                  {row.fixed && (
-                    <Text variant="bodySm" color="success">✓ Fixed</Text>
-                  )}
-                </InlineStack>
-
-                {/* Error Messages */}
-                <Banner status="critical" title="Validation Errors">
-                  <List>
-                    {row.errors.map((error, errorIndex) => (
-                      <List.Item key={errorIndex}>{error}</List.Item>
-                    ))}
-                  </List>
-                </Banner>
-
-                {/* Editable Fields */}
-                <BlockStack gap="300">
-                  {EXPECTED_FIELDS.map((field) => {
-                    const csvHeader = fieldMappings[field.key];
-                    const originalValue = csvHeader ? row.originalData[csvHeader] : '';
-                    const currentValue = row.mappedData[field.key] || '';
-                    
-                    return (
-                      <InlineStack key={field.key} align="space-between" gap="400">
-                        <Text variant="bodyMd" as="span">
-                          {field.label} {field.required && <Text variant="bodyMd" as="span" color="critical">*</Text>}
-                        </Text>
-                        <div style={{ minWidth: "200px" }}>
-                          <TextField
-                            label=""
-                            labelHidden
-                            value={currentValue}
-                            onChange={(value) => handleFieldChange(rowIndex, field.key, value)}
-                            placeholder={originalValue || `Enter ${field.label.toLowerCase()}`}
-                            error={field.required && !currentValue.trim() ? "Required field" : undefined}
-                          />
-                        </div>
-                      </InlineStack>
-                    );
-                  })}
-                </BlockStack>
+                {EXPECTED_FIELDS.map((field) => {
+                  const csvHeader = fieldMappings[field.key];
+                  const originalValue = csvHeader ? row.originalData[csvHeader] : '';
+                  const currentValue = row.mappedData[field.key] || '';
+                  return (
+                    <InlineStack key={field.key} align="space-between" gap="400">
+                      <Text variant="bodyMd" as="span">
+                        {field.label} {field.required && <Text variant="bodyMd" as="span" color="critical">*</Text>}
+                      </Text>
+                      <div style={{ minWidth: "200px" }}>
+                        <TextField
+                          label=""
+                          labelHidden
+                          value={currentValue}
+                          onChange={(value) => handleFieldChange(rowIndex, field.key, value)}
+                          placeholder={originalValue || `Enter ${field.label.toLowerCase()}`}
+                          error={field.required && !currentValue.trim() ? "Required field" : undefined}
+                        />
+                      </div>
+                    </InlineStack>
+                  );
+                })}
               </BlockStack>
-            </Card>
-          ))}
-        </BlockStack>
-      </Modal.Section>
+            </BlockStack>
+          </Card>
+        ))}
+        {/* Action Buttons at the bottom */}
+        <InlineStack gap="400">
+          <Button
+            primary
+            onClick={handleRetryImport}
+            loading={isProcessing}
+            disabled={editableRows.filter(row => row.fixed).length === 0}
+          >
+            Re-import Fixed Rows
+          </Button>
+          <Button onClick={exportFailedRows} variant="secondary">
+            Export Failed Rows
+          </Button>
+          <Button onClick={handleClose} variant="secondary">
+            Close
+          </Button>
+        </InlineStack>
+      </BlockStack>
     </Modal>
   );
 }
