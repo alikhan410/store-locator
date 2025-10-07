@@ -11,6 +11,25 @@ export const loader = async ({ request }) => {
     const shop = url.searchParams.get("shop");
     console.log("shop is: ", shop);
     console.log("radius is: ", radiusKm, " km");
+    
+    // If no shop parameter, return error
+    if (!shop) {
+      console.error("No shop parameter provided");
+      return new Response("Shop parameter required", { status: 400 });
+    }
+    
+    // Validate coordinates
+    if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
+      console.error("Invalid coordinates:", lat, lng);
+      return new Response("Invalid coordinates", { status: 400 });
+    }
+    
+    // Limit maximum radius to prevent performance issues
+    const maxRadiusKm = 5000; // ~3100 miles
+    if (radiusKm > maxRadiusKm) {
+      console.error("Radius too large:", radiusKm, "km");
+      return new Response(`Maximum radius is ${maxRadiusKm} km`, { status: 400 });
+    }
 
     let nearbyCandidates;
 
@@ -39,6 +58,10 @@ export const loader = async ({ request }) => {
       });
     }
 
+    console.log("Found", nearbyCandidates.length, "candidate stores");
+    console.log("Search center:", lat, lng);
+    console.log("Radius:", radiusKm, "km");
+
     // Apply precise Haversine filtering
     const stores = nearbyCandidates
       .map((store) => {
@@ -51,6 +74,9 @@ export const loader = async ({ request }) => {
         ...store,
         distance: store.distance.toFixed(2),
       }));
+
+    console.log("Final stores after filtering:", stores.length);
+    console.log("Stores:", stores.map(s => ({ name: s.name, city: s.city, state: s.state, distance: s.distance })));
 
     return { stores };
   } catch (error) {
