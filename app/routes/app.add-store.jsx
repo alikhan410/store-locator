@@ -2,7 +2,6 @@ import {
   Card,
   Layout,
   Page,
-  FormLayout,
   TextField,
   Button,
   Divider,
@@ -439,8 +438,9 @@ export default function AddStore() {
 
       {/* Store Slots Remaining Indicator */}
       {limitCheck.canAdd && (
-        <Box marginBlockEnd="4">
-          <Banner tone="success">
+        <>
+        <s-box>
+          <s-banner tone="critical">
             <Text as="span" fontWeight="semibold">
               {`You have ${limitCheck.remaining} store slot${limitCheck.remaining === 1 ? "" : "s"} remaining out of ${limitCheck.limit}.`}
             </Text>
@@ -450,17 +450,19 @@ export default function AddStore() {
                 more slots.
               </Text>
             </div>
-          </Banner>
-        </Box>
+          </s-banner>
+        </s-box>
+        <div style={{ marginBottom: "10px" }}></div>
+        </>
       )}
 
       <Layout>
         <Layout.Section>
-          <Card title="Store Information" sectioned>
+          <s-section title="Store Information" sectioned>
             <Form method="post">
-              <FormLayout>
+              <s-grid gap="base">
                 {/* Store Name and Link */}
-                <FormLayout.Group>
+                <s-grid gridTemplateColumns="repeat(2, 1fr)" gap="base">
                   <TextField
                     name="name"
                     label={
@@ -479,7 +481,7 @@ export default function AddStore() {
                     value={formData.link}
                     onChange={handleChange("link")}
                   />
-                </FormLayout.Group>
+                </s-grid>
 
                 <Divider />
 
@@ -535,62 +537,67 @@ export default function AddStore() {
                   </div>
                 )}
 
-                <FormLayout.Group condensed>
-                  <Select
-                    requiredFields
-                    name="state"
-                    label={
-                      <>
-                        State <span style={{ color: "#d82c0d" }}>*</span>
-                      </>
-                    }
-                    options={stateOptions}
-                    onChange={handleChange("state")}
-                    value={formData.state}
-                    aria-required="true"
-                    aria-describedby="state-error"
-                  />
-                  <TextField
-                    name="city"
-                    label={
-                      <>
-                        City <span style={{ color: "#d82c0d" }}>*</span>
-                      </>
-                    }
-                    onChange={handleChange("city")}
-                    value={formData.city}
-                    aria-required="true"
-                    aria-describedby="city-error"
-                  />
-                  <TextField
-                    name="zip"
-                    type="integer"
-                    label={
-                      <>
-                        ZIP Code <span style={{ color: "#d82c0d" }}>*</span>
-                      </>
-                    }
-                    value={formData.zip}
-                    onChange={handleChange("zip")}
-                    aria-required="true"
-                    aria-describedby="zip-error"
-                  />
-                  <TextField
-                    name="phone"
-                    label="Phone Number"
-                    value={formData.phone}
-                    onChange={(val) => {
-                      const formatted = formatPhone(val.replace(/\D/g, "")); // Remove non-numeric
-                      handleChange("phone")(formatted);
-                    }}
-                    type="tel"
-                    aria-describedby="phone-help"
-                  />
-                </FormLayout.Group>
+                <s-query-container>
+                  <s-grid
+                    gridTemplateColumns="@container (inline-size > 768px) 'repeat(4, 1fr)', 1fr"
+                    gap="base"
+                  >
+                    <Select
+                      requiredFields
+                      name="state"
+                      label={
+                        <>
+                          State <span style={{ color: "#d82c0d" }}>*</span>
+                        </>
+                      }
+                      options={stateOptions}
+                      onChange={handleChange("state")}
+                      value={formData.state}
+                      aria-required="true"
+                      aria-describedby="state-error"
+                    />
+                    <TextField
+                      name="city"
+                      label={
+                        <>
+                          City <span style={{ color: "#d82c0d" }}>*</span>
+                        </>
+                      }
+                      onChange={handleChange("city")}
+                      value={formData.city}
+                      aria-required="true"
+                      aria-describedby="city-error"
+                    />
+                    <TextField
+                      name="zip"
+                      type="integer"
+                      label={
+                        <>
+                          ZIP Code <span style={{ color: "#d82c0d" }}>*</span>
+                        </>
+                      }
+                      value={formData.zip}
+                      onChange={handleChange("zip")}
+                      aria-required="true"
+                      aria-describedby="zip-error"
+                    />
+                    <TextField
+                      name="phone"
+                      label="Phone Number"
+                      value={formData.phone}
+                      onChange={(val) => {
+                        const formatted = formatPhone(val.replace(/\D/g, "")); // Remove non-numeric
+                        handleChange("phone")(formatted);
+                      }}
+                      type="tel"
+                      aria-describedby="phone-help"
+                    />
+                  </s-grid>
+                </s-query-container>
 
                 <Divider />
 
-                <FormLayout.Group>
+                <s-grid gridTemplateColumns="repeat(2, 1fr)" gap="base">
                   <TextField
                     name="lat"
                     label={
@@ -619,7 +626,7 @@ export default function AddStore() {
                     onChange={handleChange("lng")}
                     type="number"
                   />
-                </FormLayout.Group>
+                </s-grid>
                 <TextField
                   name="notes"
                   label="Notes"
@@ -677,9 +684,10 @@ export default function AddStore() {
                     </Button>
                   </ButtonGroup>
                 </InlineStack>
-              </FormLayout>
+              </s-grid>
             </Form>
-          </Card>
+          </s-section>
+          <s-box paddingBlockEnd="large-200" />
         </Layout.Section>
       </Layout>
     </Page>

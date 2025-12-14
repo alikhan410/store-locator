@@ -408,6 +408,7 @@ export default function AddStore() {
       <Layout>
         <Layout.Section>
           <Card title="Store Information" sectioned>
+            {/* TODO: Add data-save-bar attribute to Form to enable automatic save bar functionality for better UX when editing stores */}
             <Form method="post">
               <FormLayout>
                 {/* Store Name and Link */}
