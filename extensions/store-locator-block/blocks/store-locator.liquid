@@ -113,7 +113,7 @@
       .join(' ');
   };
 
-  function updateMapAndList(userCoords, stores) {
+  function updateMapAndList(userCoords, stores, showBranding = false) {
     console.log(stores);
     resultsEl.innerHTML = '';
 
@@ -184,6 +184,26 @@
       });
     });
     map.fitBounds(boundsObj);
+
+    // Add branding footer for Free Plan
+    if (showBranding) {
+      const brandingFooter = document.createElement('div');
+      brandingFooter.className = 'store-locator-branding';
+      brandingFooter.innerHTML = `
+        <div style="
+          text-align: center;
+          padding: 10px;
+          margin-top: 20px;
+          border-top: 1px solid #e0e0e0;
+          font-size: 12px;
+          color: #666;
+          background: #f9f9f9;
+        ">
+          Powered by <a href="https://storetrail.app" target="_blank" style="color: #007cba; text-decoration: none;">StoreTrail</a>
+        </div>
+      `;
+      resultsEl.appendChild(brandingFooter);
+    }
   }
 
   function initMap() {
@@ -234,10 +254,12 @@
         </div>
       `;
 
-      fetch(`/apps/store-locator/locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}`)
+      fetch(
+        `/apps/storetrail/locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}&shop={{ shop.domain }}`
+      )
         .then((res) => res.json())
         .then((data) => {
-          updateMapAndList(userCoords, data.stores);
+          updateMapAndList(userCoords, data.stores, data.showBranding);
         });
     });
 
@@ -259,10 +281,12 @@
             </div>
           `;
 
-          fetch(`/apps/store-locator/locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}`)
+          fetch(
+            `/apps/storetrail/locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}&shop={{ shop.domain }}`
+          )
             .then((res) => res.json())
             .then((data) => {
-              updateMapAndList(userCoords, data.stores);
+              updateMapAndList(userCoords, data.stores, data.showBranding);
             });
         },
         (error) => {
@@ -290,7 +314,7 @@
         </div>
       `;
 
-      fetch(`/apps/store-locator/geocode?address=${encodeURIComponent(query)}`)
+      fetch(`/apps/storetrail/geocode?address=${encodeURIComponent(query)}`)
         .then((res) => res.json())
         .then((geo) => {
           if (!geo.lat || !geo.lng) {
@@ -300,10 +324,12 @@
 
           userCoords = { lat: geo.lat, lng: geo.lng };
 
-          fetch(`/apps/store-locator/locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}`)
+          fetch(
+            `/apps/storetrail/locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}&shop={{ shop.domain }}`
+          )
             .then((res) => res.json())
             .then((data) => {
-              updateMapAndList(userCoords, data.stores);
+              updateMapAndList(userCoords, data.stores, data.showBranding);
             });
         })
         .catch(() => {

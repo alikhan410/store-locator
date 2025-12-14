@@ -273,7 +273,7 @@ describe('AccessibilityHelper', () => {
 - **Pagination**: Accessible pagination controls
 - **Sorting**: ARIA attributes for sortable columns
 
-### 4. Maps (`app/routes/app.map.jsx`)
+### 4. Choropleth (`app/routes/app.choropleth.jsx`)
 - **Fallback Content**: Text alternatives when maps unavailable
 - **Keyboard Controls**: Keyboard navigation for map interactions
 - **Screen Reader Support**: Descriptive text for map features

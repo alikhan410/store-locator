@@ -23,7 +23,7 @@ This document summarizes the GDPR compliance work completed for the Store Locato
 - `app/routes/app._index.jsx` - Dashboard now shows only shop-specific stores
 - `app/routes/app.view-stores.jsx` - Store listing filtered by shop
 - `app/routes/filter.jsx` - Search results filtered by shop
-- `app/routes/app.map.jsx` - Map shows only shop-specific stores
+- `app/routes/app.choropleth.jsx` - Choropleth shows only shop-specific stores
 - `app/routes/app.add-store.jsx` - New stores associated with current shop
 - `app/routes/import-stores.jsx` - Imported stores associated with current shop
 - `app/helper/createStore.js` - Store creation includes shop parameter

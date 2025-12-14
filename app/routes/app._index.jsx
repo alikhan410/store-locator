@@ -21,20 +21,26 @@ import {
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import {
   AlertCircleIcon,
-  LocationIcon,
   PhoneIcon,
   ExportIcon,
   ImportIcon,
   PlusIcon,
   ListBulletedIcon,
+  LocationIcon,
 } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
+import { useFeatureGate } from "../helper/featureGating";
+import { FeatureButton } from "../components/UpgradePrompt";
 import styles from "./_index/styles.module.css";
 
 export const loader = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { session, billing } = await authenticate.admin(request);
 
   const prisma = (await import("../db.server")).default;
+
+  // Get subscription information
+  const { appSubscriptions } = await billing.check();
+  const subscription = appSubscriptions?.[0];
 
   // Get all stores for the current shop with metrics
   const stores = await prisma.store.findMany({
@@ -65,6 +71,7 @@ export const loader = async ({ request }) => {
 
   return {
     stores: stores.slice(0, 10), // Recent 10 for activity feed
+    subscription,
     metrics: {
       totalStores,
       recentStoresCount: recentStores.length,
@@ -83,7 +90,7 @@ export const loader = async ({ request }) => {
 };
 
 export default function Index() {
-  const { stores, metrics, contactUrl } = useLoaderData();
+  const { stores, metrics, contactUrl, subscription } = useLoaderData();
   const navigate = useNavigate();
   const shopify = useAppBridge();
   const [showImport, setShowImport] = useState(false);
@@ -245,25 +252,48 @@ export default function Index() {
                   >
                     Manage Stores
                   </Button>
-                  <Button
-                    icon={LocationIcon}
-                    onClick={() => navigate("/app/map")}
+                  <FeatureButton
+                    feature="choropleth"
+                    subscription={subscription}
+                    icon="🗺️"
+                    onClick={() => navigate("/app/choropleth")}
                   >
-                    View Map
-                  </Button>
-                  <Button
+                    Store Distribution Map
+                  </FeatureButton>
+                  <FeatureButton
+                    feature="csv_import"
+                    subscription={subscription}
                     icon={ImportIcon}
                     onClick={() => navigate("/app/view-stores")}
                   >
                     Import CSV
-                  </Button>
-                  <Button icon={ExportIcon} onClick={handleExportStores}>
+                  </FeatureButton>
+                  <FeatureButton
+                    feature="csv_export"
+                    subscription={subscription}
+                    icon={ExportIcon}
+                    onClick={handleExportStores}
+                  >
                     Export Data
-                  </Button>
+                  </FeatureButton>
+                  <FeatureButton
+                    feature="dealer_submission_form"
+                    subscription={subscription}
+                    onClick={() => navigate("/app/dealer-submission")}
+                  >
+                    Dealer Submission
+                  </FeatureButton>
+                  <FeatureButton
+                    feature="dealer_submission_form"
+                    subscription={subscription}
+                    onClick={() => navigate("/app/submissions")}
+                  >
+                    Manage Submissions
+                  </FeatureButton>
                   <Button
                     icon="💬"
-                    onClick={() => window.open(contactUrl, "_blank")}
-                    aria-label="Contact Support (opens in new window)"
+                    onClick={() => navigate("/app/support")}
+                    aria-label="Contact Support"
                   >
                     Contact Support
                   </Button>
@@ -332,7 +362,10 @@ export default function Index() {
                     {stores.length > 0 ? (
                       <List>
                         {stores.slice(0, 5).map((store, idx) => (
-                          <List.Item key={store.id} className={styles.recentActivityStoreItem}>
+                          <List.Item
+                            key={store.id}
+                            className={styles.recentActivityStoreItem}
+                          >
                             <InlineStack gap="200" align="space-between">
                               <BlockStack gap="100">
                                 <Text variant="bodyMd" fontWeight="medium">

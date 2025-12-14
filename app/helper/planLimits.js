@@ -5,25 +5,31 @@
 
 // Allow environment variable overrides for testing/different environments
 const getPlanLimit = (defaultLimit, envKey) => {
-  const envValue = process.env[envKey];
+  // Only access process.env on server-side
+  const envValue = typeof process !== 'undefined' ? process.env[envKey] : undefined;
   return envValue ? parseInt(envValue, 10) : defaultLimit;
 };
 
 export const PLAN_LIMITS = {
   FREE: {
-    name: 'Free Plan',
-    storeLimit: getPlanLimit(5, 'FREE_PLAN_STORE_LIMIT'),
+    name: 'free',
+    storeLimit: getPlanLimit(10, 'FREE_PLAN_STORE_LIMIT'),
     features: ['basic_store_management', 'google_maps_integration']
   },
-  STARTUP: {
-    name: 'startup', 
-    storeLimit: getPlanLimit(50, 'STARTUP_PLAN_STORE_LIMIT'),
-    features: ['basic_store_management', 'google_maps_integration', 'csv_import', 'advanced_search']
+  BASIC: {
+    name: 'basic', 
+    storeLimit: getPlanLimit(500, 'BASIC_PLAN_STORE_LIMIT'),
+    features: ['basic_store_management', 'google_maps_integration', 'csv_import', 'csv_export', 'advanced_search', 'white_label', 'custom_css', 'bulk_operations', 'dealer_submission_form']
   },
   PRO: {
     name: 'pro',
-    storeLimit: getPlanLimit(500, 'PRO_PLAN_STORE_LIMIT'),
-    features: ['basic_store_management', 'google_maps_integration', 'csv_import', 'advanced_search', 'analytics', 'priority_support']
+    storeLimit: getPlanLimit(-1, 'PRO_PLAN_STORE_LIMIT'), // -1 means unlimited
+    features: ['basic_store_management', 'google_maps_integration', 'csv_import', 'csv_export', 'advanced_search', 'white_label', 'custom_css', 'bulk_operations', 'dealer_submission_form', 'choropleth']
+  },
+  PARTNER: {
+    name: 'partner',
+    storeLimit: getPlanLimit(-1, 'PARTNER_PLAN_STORE_LIMIT'), // -1 means unlimited
+    features: ['basic_store_management', 'google_maps_integration', 'csv_import', 'csv_export', 'advanced_search', 'white_label', 'custom_css', 'bulk_operations', 'dealer_submission_form', 'choropleth']
   }
 };
 
@@ -33,17 +39,20 @@ export const PLAN_LIMITS = {
  * @returns {Object} Plan configuration or null if invalid
  */
 export const getPlanLimits = (planName) => {
-  if (!planName) return null;
+  if (!planName) return PLAN_LIMITS.FREE; // Default to free plan if no plan name
   
   const normalizedName = planName.toLowerCase();
   
+  // Direct match with our plan names
   for (const [key, plan] of Object.entries(PLAN_LIMITS)) {
     if (plan.name.toLowerCase() === normalizedName) {
       return plan;
     }
   }
   
-  return null;
+  // If no exact match, default to free plan
+  console.warn(`Unknown plan name: "${planName}", defaulting to free plan`);
+  return PLAN_LIMITS.FREE;
 };
 
 /**
@@ -53,33 +62,30 @@ export const getPlanLimits = (planName) => {
  * @returns {Object} Result with canAdd, remaining, limit, and error message
  */
 export const checkStoreLimit = (subscription, currentStoreCount) => {
+  // If no subscription or inactive, treat as free plan
   if (!subscription || subscription.status !== 'ACTIVE') {
+    const freePlan = PLAN_LIMITS.FREE;
+    const remaining = Math.max(freePlan.storeLimit - currentStoreCount, 0);
+    
     return {
-      canAdd: false,
-      remaining: 0,
-      limit: 0,
-      error: 'No active subscription found. Please subscribe or activate your plan.'
+      canAdd: remaining > 0,
+      remaining,
+      limit: freePlan.storeLimit,
+      error: remaining === 0 
+        ? `You've reached the limit of ${freePlan.storeLimit} stores for the free plan. Please upgrade to add more stores.`
+        : null
     };
   }
 
   const plan = getPlanLimits(subscription.name);
-  if (!plan) {
-    return {
-      canAdd: false,
-      remaining: 0,
-      limit: 0,
-      error: 'Unknown subscription plan.'
-    };
-  }
-
-  const remaining = Math.max(plan.storeLimit - currentStoreCount, 0);
+  const remaining = plan.storeLimit === -1 ? -1 : Math.max(plan.storeLimit - currentStoreCount, 0);
   
   return {
-    canAdd: remaining > 0,
-    remaining,
-    limit: plan.storeLimit,
-    error: remaining === 0 
-      ? `You've reached the limit of ${plan.storeLimit} stores for your ${subscription.name}.`
+    canAdd: plan.storeLimit === -1 || remaining > 0,
+    remaining: plan.storeLimit === -1 ? 'Unlimited' : remaining,
+    limit: plan.storeLimit === -1 ? 'Unlimited' : plan.storeLimit,
+    error: (plan.storeLimit !== -1 && remaining === 0)
+      ? `You've reached the limit of ${plan.storeLimit} stores for your current plan.`
       : null
   };
 };

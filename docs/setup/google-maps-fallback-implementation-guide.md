@@ -142,7 +142,7 @@ Your store data is still accessible and functional.
 
 1. **`app/helper/googleMapsFallback.js`** - Core fallback system
 2. **`app/helper/fetchCoords.js`** - Geocoding with fallback
-3. **`app/routes/app.map.jsx`** - Map display with fallback
+3. **`app/routes/app.choropleth.jsx`** - Choropleth display with fallback
 4. **`app/routes/app-proxy.store-locator.geocode.jsx`** - Public geocoding API
 
 ### Key Functions

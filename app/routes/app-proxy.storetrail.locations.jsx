@@ -1,5 +1,6 @@
 import prisma from "../db.server";
 import { getBoundingBox, haversineDistance } from "../helper/geoUtils";
+import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
   console.log("proxy is running");
@@ -11,6 +12,19 @@ export const loader = async ({ request }) => {
     const shop = url.searchParams.get("shop");
     console.log("shop is: ", shop);
     console.log("radius is: ", radiusKm, " km");
+
+    // Get subscription information for branding
+    let subscription = null;
+    let planName = 'free';
+    
+    try {
+      const { billing } = await authenticate.admin(request);
+      const { appSubscriptions } = await billing.check();
+      subscription = appSubscriptions?.[0];
+      planName = subscription?.name || 'free';
+    } catch (error) {
+      console.log("Could not get subscription info, defaulting to free plan");
+    }
 
     let nearbyCandidates;
 
@@ -52,7 +66,11 @@ export const loader = async ({ request }) => {
         distance: store.distance.toFixed(2),
       }));
 
-    return { stores };
+    return { 
+      stores,
+      plan: planName,
+      showBranding: planName === 'free' || planName === 'Free Plan'
+    };
   } catch (error) {
     console.error("Failed to load stores", error);
     return new Response("Internal Server Error", { status: 500 });

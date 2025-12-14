@@ -12,9 +12,9 @@ export const links = () => [{ rel: "stylesheet", href: polarisStyles }];
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
 
-  return { 
+  return {
     apiKey: process.env.SHOPIFY_CLIENT_ID || "",
-    contactUrl: process.env.CONTACT_URL || "https://storetrail.app/support"
+    contactUrl: process.env.CONTACT_URL || "https://storetrail.app/support",
   };
 };
 
@@ -23,10 +23,10 @@ export default function App() {
 
   useEffect(() => {
     // Add skip link for accessibility
-    accessibilityUtils.addSkipLink('main-content', 'Skip to main content');
-    
+    accessibilityUtils.addSkipLink("main-content", "Skip to main content");
+
     // Announce page load
-    accessibilityUtils.announcePageChange('Store Locator Dashboard');
+    accessibilityUtils.announcePageChange("Store Locator Dashboard");
   }, []);
 
   return (
@@ -41,27 +41,34 @@ export default function App() {
         <Link to="/app/view-stores" aria-label="View all store locations">
           View all stores
         </Link>
-        <Link to="/app/map" aria-label="View stores on interactive map">
-          Map
+        <Link to="/app/submissions" aria-label="View all store submissions">
+          Submissions
         </Link>
-        <Link to="/app/gdpr" aria-label="Data privacy and GDPR settings">
-          Privacy & GDPR
+        <Link to="/app/choropleth" aria-label="View store distribution by state">
+          Distribution Map
         </Link>
         <Link to="/app/billing" aria-label="Billing and subscription settings">
           Billing
         </Link>
-        <Link to="/privacy-policy" target="_blank" aria-label="Privacy Policy (opens in new window)">
+        <Link to="/app/support" aria-label="Support and help resources">
+          Support
+        </Link>
+        <Link to="/app/gdpr" aria-label="Data privacy and GDPR settings">
+          Privacy & GDPR
+        </Link>
+        <Link
+          to="/privacy-policy"
+          target="_blank"
+          aria-label="Privacy Policy (opens in new window)"
+        >
           Privacy Policy
         </Link>
-        <Link to="/terms-of-service" target="_blank" aria-label="Terms of Service (opens in new window)">
-          Terms of Service
-        </Link>
-        <Link 
-          to={contactUrl} 
-          target="_blank" 
-          aria-label="Contact Support (opens in new window)"
+        <Link
+          to="/terms-of-service"
+          target="_blank"
+          aria-label="Terms of Service (opens in new window)"
         >
-          Support
+          Terms of Service
         </Link>
       </NavMenu>
       <main id="main-content" role="main" aria-label="Main content">

@@ -10,11 +10,19 @@ export class GoogleMapsFallback {
   // Check if Google Maps is available
   async checkAvailability(apiKey) {
     try {
-      // Test Google Maps API with a simple request
+      // Test Google Maps API with a simple request and shorter timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // Reduced from 5000ms to 3000ms
+      
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?address=test&key=${apiKey}`,
-        { timeout: 5000 }
+        { 
+          signal: controller.signal,
+          method: 'GET'
+        }
       );
+      
+      clearTimeout(timeoutId);
       
       if (response.ok) {
         const data = await response.json();

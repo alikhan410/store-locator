@@ -24,6 +24,7 @@
     "env:enhanced": "node scripts/switch-env-enhanced.js",
     "env:setup": "node scripts/switch-env-enhanced.js setup",
     "env:info": "node scripts/switch-env-enhanced.js info",
+    "setup:env": "node scripts/setup-env.js",
     "env:win:dev": "scripts\\switch-env.cmd development",
     "env:win:prod": "scripts\\switch-env.cmd production",
     "env:win:status": "scripts\\switch-env.cmd status",

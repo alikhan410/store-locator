@@ -2,35 +2,25 @@ import { authenticate } from "../shopify.server";
 
 export const action = async ({ request }) => {
   const { session } = await authenticate.admin(request);
-  const prisma = (await import("../db.server")).default;
+  const formData = await request.formData();
+  const storeIds = formData.getAll("storeIds");
 
-  let storeIds = [];
-  const contentType = request.headers.get("content-type") || "";
-
-  if (contentType.includes("application/json")) {
-    const body = await request.json();
-    storeIds = Array.isArray(body.storeIds) ? body.storeIds : [];
-  } else {
-    const formData = await request.formData();
-    const ids = formData.getAll("storeIds");
-    storeIds = Array.isArray(ids) ? ids : [ids];
-  }
-
-  if (!Array.isArray(storeIds) || storeIds.length === 0) {
-    return json({ success: false, error: "No store IDs provided" }, { status: 400 });
+  if (!storeIds || storeIds.length === 0) {
+    return { success: false, error: "No store IDs provided" };
   }
 
   try {
-    // Only delete stores belonging to the current shop
-    const result = await prisma.store.deleteMany({
+    // Delete stores from database
+    await db.store.deleteMany({
       where: {
         id: { in: storeIds },
         shop: session.shop,
       },
     });
-    return ({ success: true, count: result.count });
+
+    return { success: true, message: `${storeIds.length} store(s) deleted successfully` };
   } catch (error) {
-    console.error("Bulk delete error:", error);
-    return ({ success: false, error: error.message || "Failed to delete stores" }, { status: 500 });
+    console.error("Error deleting stores:", error);
+    return { success: false, error: "Failed to delete stores" };
   }
 }; 

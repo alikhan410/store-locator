@@ -26,19 +26,42 @@ model Session {
 }
 
 model Store {
-  id        String   @id @default(cuid())
-  shop      String
-  name      String
-  link      String?
-  address   String
-  address2  String?
-  city      String
-  state     String
-  zip       String
-  country   String   @default("United States")
-  phone     String?
-  lat       Float?
-  lng       Float?
-  notes     String?
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  shop        String
+  name        String
+  link        String?
+  address     String
+  address2    String?
+  city        String
+  state       String
+  zip         String
+  country     String   @default("United States")
+  phone       String?
+  lat         Float?
+  lng         Float?
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+model StoreSubmission {
+  id            String   @id @default(cuid())
+  shop          String
+  storeName     String
+  contactName   String
+  contactEmail  String
+  contactPhone  String?
+  address       String
+  address2      String?
+  city          String
+  state         String
+  zip           String
+  country       String   @default("United States")
+  website       String?
+  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  notes         String?
+  adminNotes    String?  // Internal notes for admin review
+  reviewedBy    String?  // Admin who reviewed the submission
+  reviewedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

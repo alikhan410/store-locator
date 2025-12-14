@@ -9,16 +9,35 @@ export const loader = async ({ request }) => {
 
   const { appSubscriptions } = await billing.check();
   const subscription = appSubscriptions?.[0];
+  
+  // Debug: Log what Shopify is returning
+  console.log("🔍 [BILLING] Shopify subscription data:", {
+    subscription: subscription,
+    name: subscription?.name,
+    status: subscription?.status,
+    appSubscriptions: appSubscriptions
+  });
 
   const currentStoreCount = await prisma.store.count({
     where: { shop: session.shop },
   });
 
   const limitCheck = checkStoreLimit(subscription, currentStoreCount);
+  
+  console.log("🔍 [BILLING] Limit check result:", limitCheck);
+
+  // Determine plan name for display
+  let planName = "Free Plan";
+  let planStatus = "ACTIVE";
+  
+  if (subscription) {
+    planName = subscription.name || "Free Plan";
+    planStatus = subscription.status || "ACTIVE";
+  }
 
   return {
-    plan: subscription?.name || "No Active Plan",
-    status: subscription?.status || "INACTIVE",
+    plan: planName,
+    status: planStatus,
     storeLimit: limitCheck.limit,
     currentStoreCount,
     remainingSlots: limitCheck.remaining,

@@ -118,7 +118,8 @@ export const action = async ({ request }) => {
 
 export default function AddStore() {
   const action = useActionData();
-  const { googleMapsApiKey, subscription, limitCheck, currentStoreCount } = useLoaderData();
+  const { googleMapsApiKey, subscription, limitCheck, currentStoreCount } =
+    useLoaderData();
   const [isClientState, setIsClientState] = useState(false);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [isAutocompleteLoaded, setIsAutocompleteLoaded] = useState(false);
@@ -391,16 +392,16 @@ export default function AddStore() {
   return (
     <Page title="Add Store">
       <TitleBar title="Store Location Form" />
-      
+
       {/* Plan Limit Warning */}
       {!limitCheck.canAdd && (
         <Banner
           title="Cannot Add Store"
           tone="critical"
           // action={
-          // { content: "Upgrade Plan", 
-          //     url: "https://admin.shopify.com/charges/store-locator-176/pricing_plans", 
-          //     external:true }  
+          // { content: "Upgrade Plan",
+          //     url: "https://admin.shopify.com/charges/store-locator-176/pricing_plans",
+          //     external:true }
           //   }
         >
           <p>{limitCheck.error}</p>
@@ -418,12 +419,11 @@ export default function AddStore() {
 
       {/* Near Limit Warning */}
       {limitCheck.canAdd && limitCheck.remaining <= 3 && (
-        <Banner
-          title="Approaching Store Limit"
-          tone="warning"
-        >
+        <Banner title="Approaching Store Limit" tone="warning">
           <p>
-            You have {limitCheck.remaining} store slot{limitCheck.remaining === 1 ? "" : "s"} remaining. Consider upgrading your plan.
+            You have {limitCheck.remaining} store slot
+            {limitCheck.remaining === 1 ? "" : "s"} remaining. Consider
+            upgrading your plan.
           </p>
           <p>
             <a
@@ -442,11 +442,12 @@ export default function AddStore() {
         <Box marginBlockEnd="4">
           <Banner tone="success">
             <Text as="span" fontWeight="semibold">
-              {`You have ${limitCheck.remaining} store slot${limitCheck.remaining === 1 ? '' : 's'} remaining out of ${limitCheck.limit}.`}
+              {`You have ${limitCheck.remaining} store slot${limitCheck.remaining === 1 ? "" : "s"} remaining out of ${limitCheck.limit}.`}
             </Text>
             <div>
               <Text as="span" tone="subdued" variant="bodySm">
-                Manage your locations efficiently. Upgrade your plan if you need more slots.
+                Manage your locations efficiently. Upgrade your plan if you need
+                more slots.
               </Text>
             </div>
           </Banner>

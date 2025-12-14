@@ -1,0 +1,179 @@
+{% comment %}
+  Store Locator Dealer Submission Form Block
+  This form submits to the app proxy route /apps/storetrail/dealer-submission
+{% endcomment %}
+<div
+  class="store-locator-dealer-form"
+  style="background: {{ block.settings.background_color }}; border-radius: {{ block.settings.border_radius }}px;"
+>
+  {% if block.settings.heading %}
+    <h2>{{ block.settings.heading }}</h2>
+  {% endif %}
+  {% if block.settings.description %}
+    <p>{{ block.settings.description }}</p>
+  {% endif %}
+  <form id="dealerSubmissionForm" method="POST" action="/apps/storetrail/dealer-submission" autocomplete="on">
+    <label>
+      {{- block.settings.label_store_name | default: 'Store Name*' -}}
+      <br>
+      <input type="text" name="storeName" required></label
+    ><br>
+    <label>
+      {{- block.settings.label_contact_name | default: 'Contact Name*' -}}
+      <br>
+      <input type="text" name="contactName" required></label
+    ><br>
+    <label>
+      {{- block.settings.label_contact_email | default: 'Contact Email*' -}}
+      <br>
+      <input type="email" name="contactEmail" required></label
+    ><br>
+    {% if block.settings.show_contact_phone %}
+      <label>
+        {{- block.settings.label_contact_phone | default: 'Contact Phone' -}}
+        <br>
+        <input
+          type="tel"
+          name="contactPhone"
+          {% if block.settings.require_contact_phone %}
+            required
+          {% endif %}></label
+      ><br>
+    {% endif %}
+    <label
+      >Address*<br>
+      <input type="text" name="address" required></label
+    ><br>
+    <label
+      >Address 2<br>
+      <input type="text" name="address2"></label
+    ><br>
+    <label
+      >City*<br>
+      <input type="text" name="city" required></label
+    ><br>
+    <label
+      >State*<br>
+      <input type="text" name="state" required></label
+    ><br>
+    <label
+      >ZIP*<br>
+      <input type="text" name="zip" required></label
+    ><br>
+    <label
+      >Country<br>
+      <input type="text" name="country" value="United States"></label
+    ><br>
+    <label
+      >Store Type<br>
+      <input type="text" name="storeType"></label
+    ><br>
+    <label
+      >Description<br>
+      <textarea name="description"></textarea></label
+    ><br>
+    {% if block.settings.show_tags %}
+      <label
+        >Tags (comma separated)<br>
+        <input type="text" name="tags"></label
+      ><br>
+    {% endif %}
+    {% if block.settings.show_notes %}
+      <label
+        >Notes<br>
+        <textarea name="notes"></textarea></label
+      ><br>
+    {% endif %}
+    <button
+      type="submit"
+      style="background: {{ block.settings.button_color }}; color: {{ block.settings.button_text_color }};"
+    >
+      {{ block.settings.button_text | default: 'Submit Store' }}
+    </button>
+    <div id="dealerSubmissionMessage" style="margin-top:10px;"></div>
+  </form>
+  <style>
+    {{ block.settings.custom_css }}
+  </style>
+</div>
+<script>
+  (function () {
+    var form = document.getElementById('dealerSubmissionForm');
+    var msg = document.getElementById('dealerSubmissionMessage');
+    form.onsubmit = async function (e) {
+      e.preventDefault();
+      msg.textContent = 'Submitting...';
+      var formData = new FormData(form);
+      var data = {};
+      formData.forEach((v, k) => (data[k] = v));
+      try {
+        var res = await fetch(form.action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        var result = await res.json();
+        if (result.success) {
+          msg.textContent =
+            "{{ block.settings.success_message | escape | default: 'Thank you! Your submission has been received.' }}";
+          form.reset();
+        } else {
+          msg.textContent = result.error || 'Submission failed.';
+        }
+      } catch (err) {
+        msg.textContent = 'Submission failed. Please try again.';
+      }
+    };
+  })();
+</script>
+{% schema %}
+{
+  "name": "Dealer Submission Form",
+  "target": "section",
+  "settings": [
+    { "type": "header", "content": "General" },
+    { "type": "text", "id": "heading", "label": "Form Heading", "default": "Submit Your Store" },
+    {
+      "type": "textarea",
+      "id": "description",
+      "label": "Form Description",
+      "default": "Dealers and partners can submit their store for approval. Please fill out all required fields."
+    },
+    { "type": "text", "id": "button_text", "label": "Submit Button Text", "default": "Submit Store" },
+    {
+      "type": "text",
+      "id": "success_message",
+      "label": "Success Message",
+      "default": "Thank you! Your submission has been received."
+    },
+
+    { "type": "header", "content": "Appearance" },
+    { "type": "color", "id": "button_color", "label": "Button Color", "default": "#008060" },
+    { "type": "color", "id": "button_text_color", "label": "Button Text Color", "default": "#fff" },
+    { "type": "color", "id": "background_color", "label": "Form Background Color", "default": "#fff" },
+    {
+      "type": "range",
+      "id": "border_radius",
+      "label": "Form Border Radius",
+      "min": 0,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "default": 12
+    },
+
+    { "type": "header", "content": "Fields" },
+    { "type": "checkbox", "id": "show_contact_phone", "label": "Show Contact Phone", "default": true },
+    { "type": "checkbox", "id": "require_contact_phone", "label": "Require Contact Phone", "default": false },
+    { "type": "checkbox", "id": "show_tags", "label": "Show Tags Field", "default": true },
+    { "type": "checkbox", "id": "show_notes", "label": "Show Notes Field", "default": true },
+    { "type": "text", "id": "label_store_name", "label": "Store Name Label", "default": "Store Name*" },
+    { "type": "text", "id": "label_contact_name", "label": "Contact Name Label", "default": "Contact Name*" },
+    { "type": "text", "id": "label_contact_email", "label": "Contact Email Label", "default": "Contact Email*" },
+    { "type": "text", "id": "label_contact_phone", "label": "Contact Phone Label", "default": "Contact Phone" },
+
+    { "type": "header", "content": "Advanced" },
+    { "type": "textarea", "id": "custom_css", "label": "Custom CSS", "default": "/* Add custom CSS here */" }
+  ]
+}
+{% endschema %}

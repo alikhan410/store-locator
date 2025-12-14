@@ -48,11 +48,11 @@ export const action = async ({ request }) => {
       orderBy: { createdAt: "desc" },
     });
 
-    return Response.json({
+    return {
       success: true,
       data: stores,
       message: "Data export completed successfully",
-    });
+    };
   }
 
   if (action === "delete") {
@@ -63,14 +63,14 @@ export const action = async ({ request }) => {
       },
     });
 
-    return Response.json({
+    return {
       success: true,
       deletedCount: deletedCount.count,
       message: `Successfully deleted ${deletedCount.count} stores`,
-    });
+    };
   }
 
-  return Response.json({ error: "Invalid action" }, { status: 400 });
+  return { success: false, error: "Invalid action" };
 };
 
 export default function GDPRPage() {

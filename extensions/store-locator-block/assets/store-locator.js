@@ -18,7 +18,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function fetchAndUpdate(coords) {
     const radiusKm = parseInt(radiusSelect.value, 10);
-    fetch("{{ 'stores.json' | asset_url }}")
+    const shopDomain = window.Shopify?.shop?.domain;
+    
+    if (!shopDomain) {
+      console.error('Shop domain not available');
+      return;
+    }
+    
+    fetch(`/apps/storetrail/locations?lat=${coords.lat}&lng=${coords.lng}&radius=${radiusKm}&shop=${shopDomain}`)
       .then((res) => res.json())
       .then((data) => {
         updateMapAndList(
@@ -26,7 +33,12 @@ document.addEventListener("DOMContentLoaded", () => {
           coords,
           data.stores,
           radiusKm,
+          data.showBranding
         );
+      })
+      .catch((error) => {
+        console.error('Failed to fetch stores:', error);
+        resultsEl.innerHTML = '<p>Unable to load store locations. Please try again.</p>';
       });
   }
 

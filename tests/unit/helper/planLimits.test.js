@@ -10,14 +10,14 @@ import {
 describe('Plan Limits Helper', () => {
   describe('PLAN_LIMITS', () => {
     it('should have correct plan configurations', () => {
-      expect(PLAN_LIMITS.FREE.storeLimit).toBe(5);
-      expect(PLAN_LIMITS.STARTUP.storeLimit).toBe(50);
+      expect(PLAN_LIMITS.FREE.storeLimit).toBe(10);
+      expect(PLAN_LIMITS.BASIC.storeLimit).toBe(50);
       expect(PLAN_LIMITS.PRO.storeLimit).toBe(500);
     });
 
     it('should have features for each plan', () => {
       expect(PLAN_LIMITS.FREE.features).toContain('basic_store_management');
-      expect(PLAN_LIMITS.STARTUP.features).toContain('csv_import');
+      expect(PLAN_LIMITS.BASIC.features).toContain('csv_import');
       expect(PLAN_LIMITS.PRO.features).toContain('analytics');
     });
   });
@@ -26,8 +26,10 @@ describe('Plan Limits Helper', () => {
     it('should return correct plan for valid plan names', () => {
       expect(getPlanLimits('free')).toEqual(PLAN_LIMITS.FREE);
       expect(getPlanLimits('Free')).toEqual(PLAN_LIMITS.FREE);
-      expect(getPlanLimits('STARTUP')).toEqual(PLAN_LIMITS.STARTUP);
+      expect(getPlanLimits('basic')).toEqual(PLAN_LIMITS.BASIC);
+      expect(getPlanLimits('Basic')).toEqual(PLAN_LIMITS.BASIC);
       expect(getPlanLimits('pro')).toEqual(PLAN_LIMITS.PRO);
+      expect(getPlanLimits('Pro')).toEqual(PLAN_LIMITS.PRO);
     });
 
     it('should return null for invalid plan names', () => {
@@ -47,24 +49,24 @@ describe('Plan Limits Helper', () => {
     it('should allow adding stores when under limit', () => {
       const result = checkStoreLimit(mockSubscription('free'), 3);
       expect(result.canAdd).toBe(true);
-      expect(result.remaining).toBe(2);
-      expect(result.limit).toBe(5);
+      expect(result.remaining).toBe(7);
+      expect(result.limit).toBe(10);
       expect(result.error).toBeNull();
     });
 
     it('should prevent adding stores when at limit', () => {
-      const result = checkStoreLimit(mockSubscription('free'), 5);
+      const result = checkStoreLimit(mockSubscription('free'), 10);
       expect(result.canAdd).toBe(false);
       expect(result.remaining).toBe(0);
-      expect(result.limit).toBe(5);
+      expect(result.limit).toBe(10);
       expect(result.error).toContain('You\'ve reached the limit');
     });
 
     it('should prevent adding stores when over limit', () => {
-      const result = checkStoreLimit(mockSubscription('free'), 6);
+      const result = checkStoreLimit(mockSubscription('free'), 11);
       expect(result.canAdd).toBe(false);
       expect(result.remaining).toBe(0);
-      expect(result.limit).toBe(5);
+      expect(result.limit).toBe(10);
     });
 
     it('should handle inactive subscription', () => {
@@ -93,7 +95,7 @@ describe('Plan Limits Helper', () => {
     });
 
     it('should allow full import when under limit', () => {
-      const result = validateImportSize(mockSubscription('startup'), 10, 20);
+      const result = validateImportSize(mockSubscription('basic'), 10, 20);
       expect(result.allowedImport).toBe(20);
       expect(result.skipped).toBe(0);
       expect(result.error).toBeNull();
