@@ -1,19 +1,40 @@
 import { db } from "../db.server.js";
 import { stateOptions } from "../helper/options.js";
+import { authenticate } from "../shopify.server.js";
 
 export const loader = async ({ request }) => {
+  // Authenticate the app proxy request (validates it's from Shopify)
+  await authenticate.public.appProxy(request);
   return { stateOptions };
 };
 
 export const action = async ({ request }) => {
+  console.log("Dealer submission action called:", request.method, request.url);
+  
+  // Authenticate the app proxy request (validates it's from Shopify)
+  await authenticate.public.appProxy(request);
+  
   if (request.method !== "POST") {
-    return { success: false, error: "Invalid method" };
+    return new Response(
+      JSON.stringify({ success: false, error: "Invalid method" }),
+      {
+        status: 405,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
+  let data;
   try {
-    const data = await request.json();
+    data = await request.json();
   } catch (error) {
-    return { success: false, error: "Invalid JSON" };
+    return new Response(
+      JSON.stringify({ success: false, error: "Invalid JSON" }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
   const {
@@ -41,7 +62,13 @@ export const action = async ({ request }) => {
     !state ||
     !zip
   ) {
-    return { success: false, error: "Please fill in all required fields." };
+    return new Response(
+      JSON.stringify({ success: false, error: "Please fill in all required fields." }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
   try {
@@ -65,23 +92,25 @@ export const action = async ({ request }) => {
       },
     });
 
-    // Send notification to Klaviyo (reuse logic)
-    try {
-      const { sendKlaviyoNotification } = await import(
-        "./app.dealer-submission.jsx"
-      );
-      await sendKlaviyoNotification(submission, data.shop || "public");
-    } catch (klaviyoError) {
-      console.error("Failed to send Klaviyo notification:", klaviyoError);
-    }
-
-    return { success: true, submissionId: submission.id };
+    return new Response(
+      JSON.stringify({ success: true, submissionId: submission.id }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   } catch (error) {
     console.error("Submission error:", error);
-    return {
-      success: false,
-      error: "Failed to submit store information. Please try again.",
-    };
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Failed to submit store information. Please try again.",
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 };
 

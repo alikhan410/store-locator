@@ -2,97 +2,516 @@
   Store Locator Dealer Submission Form Block
   This form submits to the app proxy route /apps/storetrail/dealer-submission
 {% endcomment %}
+{% if block.settings.google_maps_api_key %}
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key={{ block.settings.google_maps_api_key }}&libraries=places"
+    async
+    defer
+  ></script>
+{% endif %}
 <div
   class="store-locator-dealer-form"
   style="background: {{ block.settings.background_color }}; border-radius: {{ block.settings.border_radius }}px;"
 >
   {% if block.settings.heading %}
-    <h2>{{ block.settings.heading }}</h2>
+    <h2 class="form-heading">{{ block.settings.heading }}</h2>
   {% endif %}
   {% if block.settings.description %}
-    <p>{{ block.settings.description }}</p>
+    <p class="form-description">{{ block.settings.description }}</p>
   {% endif %}
+  
   <form id="dealerSubmissionForm" method="POST" action="/apps/storetrail/dealer-submission" autocomplete="on">
-    <label>
-      {{- block.settings.label_store_name | default: 'Store Name*' -}}
-      <br>
-      <input type="text" name="storeName" required></label
-    ><br>
-    <label>
-      {{- block.settings.label_contact_name | default: 'Contact Name*' -}}
-      <br>
-      <input type="text" name="contactName" required></label
-    ><br>
-    <label>
-      {{- block.settings.label_contact_email | default: 'Contact Email*' -}}
-      <br>
-      <input type="email" name="contactEmail" required></label
-    ><br>
-    {% if block.settings.show_contact_phone %}
-      <label>
-        {{- block.settings.label_contact_phone | default: 'Contact Phone' -}}
-        <br>
-        <input
-          type="tel"
-          name="contactPhone"
-          {% if block.settings.require_contact_phone %}
-            required
-          {% endif %}></label
-      ><br>
-    {% endif %}
-    <label
-      >Address*<br>
-      <input type="text" name="address" required></label
-    ><br>
-    <label
-      >Address 2<br>
-      <input type="text" name="address2"></label
-    ><br>
-    <label
-      >City*<br>
-      <input type="text" name="city" required></label
-    ><br>
-    <label
-      >State*<br>
-      <input type="text" name="state" required></label
-    ><br>
-    <label
-      >ZIP*<br>
-      <input type="text" name="zip" required></label
-    ><br>
-    <label
-      >Country<br>
-      <input type="text" name="country" value="United States"></label
-    ><br>
-    <label
-      >Store Type<br>
-      <input type="text" name="storeType"></label
-    ><br>
-    <label
-      >Description<br>
-      <textarea name="description"></textarea></label
-    ><br>
-    {% if block.settings.show_tags %}
-      <label
-        >Tags (comma separated)<br>
-        <input type="text" name="tags"></label
-      ><br>
-    {% endif %}
-    {% if block.settings.show_notes %}
-      <label
-        >Notes<br>
-        <textarea name="notes"></textarea></label
-      ><br>
-    {% endif %}
-    <button
-      type="submit"
-      style="background: {{ block.settings.button_color }}; color: {{ block.settings.button_text_color }};"
-    >
-      {{ block.settings.button_text | default: 'Submit Store' }}
-    </button>
-    <div id="dealerSubmissionMessage" style="margin-top:10px;"></div>
+    
+    <!-- Store Information Section -->
+    <div class="form-section">
+      <h3 class="section-title">Store Information</h3>
+      <div class="form-field">
+        <label for="storeName">
+          {{- block.settings.label_store_name | default: 'Store Name' -}}
+          <span class="required">*</span>
+        </label>
+        <input type="text" id="storeName" name="storeName" required value="Test Store Location">
+      </div>
+      <div class="form-field">
+        <label for="storeType">Store Type</label>
+        <input type="text" id="storeType" name="storeType" value="Retail Store">
+      </div>
+      {% if block.settings.show_tags %}
+        <div class="form-field">
+          <label for="tags">Tags (comma separated)</label>
+          <input type="text" id="tags" name="tags" placeholder="e.g. retail, authorized dealer" value="retail, authorized dealer, test">
+        </div>
+      {% endif %}
+      <div class="form-field full-width">
+        <label for="description">Description</label>
+        <textarea id="description" name="description" rows="3">This is a test store submission for testing purposes.</textarea>
+      </div>
+    </div>
+
+    <!-- Contact Information Section -->
+    <div class="form-section">
+      <h3 class="section-title">Contact Information</h3>
+      <div class="form-row contact-grid">
+        <div class="form-field">
+          <label for="contactName">
+            {{- block.settings.label_contact_name | default: 'Contact Name' -}}
+            <span class="required">*</span>
+          </label>
+          <input type="text" id="contactName" name="contactName" required value="John Doe">
+        </div>
+        <div class="form-field">
+          <label for="contactEmail">
+            {{- block.settings.label_contact_email | default: 'Contact Email' -}}
+            <span class="required">*</span>
+          </label>
+          <input type="email" id="contactEmail" name="contactEmail" required value="test@example.com">
+        </div>
+        {% if block.settings.show_contact_phone %}
+          <div class="form-field">
+            <label for="contactPhone">
+              {{- block.settings.label_contact_phone | default: 'Contact Phone' -}}
+              {% if block.settings.require_contact_phone %}
+                <span class="required">*</span>
+              {% endif %}
+            </label>
+            <input
+              type="tel"
+              id="contactPhone"
+              name="contactPhone"
+              value="(555) 123-4567"
+              {% if block.settings.require_contact_phone %}
+                required
+              {% endif %}
+            >
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Address Information Section -->
+    <div class="form-section">
+      <h3 class="section-title">Address Information</h3>
+      
+      <!-- Address and Address2 side-by-side -->
+      <div class="address-row">
+        <div class="form-field">
+          <label for="address">
+            Address
+            <span class="required">*</span>
+          </label>
+          <input type="text" id="address" name="address" required placeholder="Start typing an address..." value="1600 Amphitheatre Parkway">
+          <small class="field-hint">Type your address and select from suggestions</small>
+        </div>
+        <div class="form-field">
+          <label for="address2">Address Line 2</label>
+          <input type="text" id="address2" name="address2" placeholder="Suite, Unit, etc." value="Suite 100">
+        </div>
+      </div>
+
+      <!-- State, City, ZIP, Country in one row -->
+      <div class="form-row address-grid">
+        <div class="form-field">
+          <label for="state">
+            State
+            <span class="required">*</span>
+          </label>
+          <input type="text" id="state" name="state" required value="CA">
+        </div>
+        <div class="form-field">
+          <label for="city">
+            City
+            <span class="required">*</span>
+          </label>
+          <input type="text" id="city" name="city" required value="Mountain View">
+        </div>
+        <div class="form-field">
+          <label for="zip">
+            ZIP Code
+            <span class="required">*</span>
+          </label>
+          <input type="text" id="zip" name="zip" required value="94043">
+        </div>
+        <div class="form-field">
+          <label for="country">Country</label>
+          <input type="text" id="country" name="country" value="United States">
+        </div>
+      </div>
+
+      <!-- Latitude and Longitude fields -->
+      {% if block.settings.google_maps_api_key %}
+        <div class="form-row">
+          <div class="form-field">
+            <label for="lat">Latitude (optional)</label>
+            <input type="number" id="lat" name="lat" step="any" value="37.4224764">
+          </div>
+          <div class="form-field">
+            <label for="lng">Longitude (optional)</label>
+            <input type="number" id="lng" name="lng" step="any" value="-122.0842499">
+          </div>
+        </div>
+        
+        <!-- Map below lat/lng fields -->
+        <div class="form-field full-width">
+          <label for="location-map">Location Map</label>
+          <div id="location-map" class="location-map-container"></div>
+          <small class="field-hint">Type an address above and select from suggestions to set the location</small>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Additional Information Section -->
+      {% if block.settings.show_notes %}
+        <div class="form-section">
+          <h3 class="section-title">Additional Information</h3>
+          <div class="form-field full-width">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes" rows="3">Test submission notes - please ignore.</textarea>
+          </div>
+        </div>
+      {% endif %}
+
+    <!-- Submit Button -->
+    <div class="form-actions">
+      <button
+        type="submit"
+        class="submit-button"
+        style="background: {{ block.settings.button_color }}; color: {{ block.settings.button_text_color }};"
+      >
+        {{ block.settings.button_text | default: 'Submit Store' }}
+      </button>
+      <div id="dealerSubmissionMessage" class="form-message"></div>
+    </div>
   </form>
+  
   <style>
+    .store-locator-dealer-form {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    .form-heading {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0 0 6px 0;
+      color: #202223;
+    }
+
+    .form-description {
+      font-size: 14px;
+      color: #6d7175;
+      margin: 0 0 24px 0;
+      line-height: 1.5;
+    }
+
+    .form-section {
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+    }
+
+    .form-section:last-of-type {
+      padding-bottom: 0;
+      margin-bottom: 0;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0 0 16px 0;
+      color: #202223;
+      grid-column: 1 / -1;
+    }
+
+    .form-section {
+      display: block;
+    }
+
+    @media (min-width: 768px) {
+      .form-section {
+        display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 5px;
+      align-items: start;
+      }
+
+      .form-field.full-width,
+      .form-row {
+        grid-column: 1 / -1;
+      }
+    }
+
+    .form-field {
+      margin-bottom: 16px;
+    }
+
+    @media (min-width: 768px) {
+      .form-field {
+        margin-bottom: 0;
+      }
+    }
+
+    .form-field:last-child {
+      margin-bottom: 0;
+    }
+
+    .address-row {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 16px;
+      grid-column: 1 / -1;
+      align-items: flex-start;
+    }
+
+    .address-row .form-field {
+      flex: 1;
+      margin-bottom: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .address-row .form-field label {
+      flex-shrink: 0;
+    }
+
+    .address-row .form-field input {
+      flex: 1;
+    }
+
+    @media (max-width: 767px) {
+      .address-row {
+        flex-direction: column;
+        gap: 5px;
+      }
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 5px;
+      margin-bottom: 16px;
+      grid-column: 1 / -1;
+    }
+
+    .address-grid {
+      margin-bottom: 16px;
+    }
+
+    @media (min-width: 768px) {
+      .form-row.address-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 5px;
+      }
+      
+      .form-row.contact-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5px;
+      }
+      
+      .form-row:not(.address-grid):not(.contact-grid) {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 1023px) and (min-width: 768px) {
+      .form-row.address-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 5px;
+      }
+    }
+
+    .form-field.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .form-field label {
+      display: block;
+      font-weight: 500;
+      font-size: 13px;
+      margin-bottom: 5px;
+      color: #202223;
+    }
+
+    .required {
+      color: #d72c0d;
+      margin-left: 2px;
+    }
+
+    .form-field input,
+    .form-field textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #ffffff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-sizing: border-box;
+    }
+
+    .form-field input:focus,
+    .form-field textarea:focus {
+      outline: none;
+      border-color: {{ block.settings.button_color | default: '#008060' }};
+      box-shadow: 0 0 0 3px rgba(0, 128, 96, 0.1);
+    }
+
+    .form-field textarea {
+      resize: vertical;
+      min-height: 70px;
+    }
+
+    .field-hint {
+      display: block;
+      margin-top: 4px;
+      font-size: 12px;
+      color: #6d7175;
+      font-style: italic;
+      line-height: 1.4;
+    }
+
+    .location-map-container {
+      width: 100%;
+      height: 250px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 5px;
+      background: #f5f5f5;
+    }
+
+    .location-map-container.loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6d7175;
+      font-size: 14px;
+    }
+
+    .form-actions {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid #e1e3e5;
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .submit-button {
+      width: auto;
+      min-width: 200px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      font-family: inherit;
+    }
+
+    .submit-button:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .submit-button:active {
+      transform: translateY(0);
+    }
+
+    .submit-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .form-message {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      min-height: 20px;
+      text-align: center;
+    }
+
+    .form-message.success {
+      background: #e3fcef;
+      color: #008060;
+      border: 1px solid #b3e5d1;
+    }
+
+    .form-message.error {
+      background: #fee7e2;
+      color: #d72c0d;
+      border: 1px solid #fcc1b7;
+    }
+
+    .form-message.info {
+      background: #e3ecf7;
+      color: #1a73e8;
+      border: 1px solid #aecbfa;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 767px) {
+      .store-locator-dealer-form {
+        padding: 20px 16px !important;
+      }
+
+      .form-heading {
+        font-size: 22px;
+      }
+
+      .form-description {
+        font-size: 13px;
+        margin-bottom: 20px;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr !important;
+        gap: 5px;
+      }
+
+      .form-section {
+        display: block !important;
+        grid-template-columns: none !important;
+        margin-bottom: 18px;
+        padding-bottom: 18px;
+      }
+
+      .section-title {
+        grid-column: auto !important;
+        margin: 0 0 20px 0 !important;
+      }
+
+      .form-field.full-width {
+        grid-column: auto !important;
+      }
+
+      .form-row {
+        grid-column: auto !important;
+      }
+
+      .form-actions {
+        grid-column: auto !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+      }
+
+      .submit-button {
+        width: 100% !important;
+        min-width: auto !important;
+      }
+
+      .form-message {
+        margin-top: 0 !important;
+      }
+    }
+
     {{ block.settings.custom_css }}
   </style>
 </div>
@@ -100,28 +519,192 @@
   (function () {
     var form = document.getElementById('dealerSubmissionForm');
     var msg = document.getElementById('dealerSubmissionMessage');
+    var submitButton = form.querySelector('button[type="submit"]');
+    var addressInput = document.getElementById('address');
+    var mapContainer = document.getElementById('location-map');
+    var latInput = document.getElementById('lat');
+    var lngInput = document.getElementById('lng');
+    var cityInput = document.getElementById('city');
+    var stateInput = document.getElementById('state');
+    var zipInput = document.getElementById('zip');
+    var address2Input = document.getElementById('address2');
+    
+    var map = null;
+    var marker = null;
+    var autocomplete = null;
+    var isMapInitialized = false;
+    
+    function setMessage(text, type) {
+      msg.textContent = text;
+      msg.className = 'form-message ' + (type || 'info');
+    }
+    
+    // Initialize Google Maps and Autocomplete
+    function initMapAndAutocomplete() {
+      {% if block.settings.google_maps_api_key %}
+      // Wait for Google Maps to load
+      if (typeof google === 'undefined' || !google.maps) {
+        // Check every 100ms if Google Maps is loaded
+        setTimeout(initMapAndAutocomplete, 100);
+        return;
+      }
+      
+      // Initialize map
+      if (mapContainer && !isMapInitialized) {
+        mapContainer.innerHTML = '';
+        mapContainer.classList.remove('loading');
+        
+        map = new google.maps.Map(mapContainer, {
+          center: { lat: 39.8283, lng: -98.5795 }, // Center of USA
+          zoom: 4,
+          mapTypeControl: true,
+          streetViewControl: false,
+          fullscreenControl: true,
+        });
+        
+        // Add marker
+        marker = new google.maps.Marker({
+          position: map.getCenter(),
+          map: map,
+          draggable: false,
+          title: 'Store Location',
+        });
+        
+        // Note: Map click to move pin is disabled - pin only moves via Places API autocomplete
+        
+        isMapInitialized = true;
+      }
+      
+      // Initialize autocomplete
+      if (addressInput && !autocomplete) {
+        autocomplete = new google.maps.places.Autocomplete(addressInput, {
+          types: ['address'],
+          componentRestrictions: { country: 'us' },
+        });
+        
+        autocomplete.addListener('place_changed', function() {
+          var place = autocomplete.getPlace();
+          
+          if (!place.geometry || !place.geometry.location) {
+            return;
+          }
+          
+          var lat = place.geometry.location.lat();
+          var lng = place.geometry.location.lng();
+          
+          // Extract address components
+          var streetNumber = '';
+          var route = '';
+          var address2 = '';
+          var city = '';
+          var state = '';
+          var zip = '';
+          
+          place.address_components.forEach(function(component) {
+            var types = component.types;
+            
+            if (types.indexOf('street_number') !== -1) {
+              streetNumber = component.long_name;
+            } else if (types.indexOf('route') !== -1) {
+              route = component.long_name;
+            } else if (types.indexOf('subpremise') !== -1) {
+              address2 = component.long_name;
+            } else if (types.indexOf('locality') !== -1) {
+              city = component.long_name;
+            } else if (types.indexOf('administrative_area_level_1') !== -1) {
+              state = component.short_name;
+            } else if (types.indexOf('postal_code') !== -1) {
+              zip = component.long_name;
+            }
+          });
+          
+          // Update address field
+          var fullAddress = streetNumber && route ? streetNumber + ' ' + route : place.formatted_address;
+          addressInput.value = fullAddress;
+          
+          // Update other fields
+          if (cityInput) cityInput.value = city;
+          if (stateInput) stateInput.value = state;
+          if (zipInput) zipInput.value = zip;
+          if (address2Input) address2Input.value = address2;
+          
+          // Update map and marker
+          updateCoordinates(lat, lng);
+          if (map && marker) {
+            var newPosition = { lat: lat, lng: lng };
+            map.setCenter(newPosition);
+            map.setZoom(15);
+            marker.setPosition(newPosition);
+          }
+        });
+      }
+      {% endif %}
+    }
+    
+    function updateCoordinates(lat, lng) {
+      if (latInput) latInput.value = lat.toString();
+      if (lngInput) lngInput.value = lng.toString();
+    }
+    
+    
+    // Initialize map when page loads
+    if (mapContainer) {
+      mapContainer.classList.add('loading');
+      mapContainer.innerHTML = 'Loading map...';
+    }
+    
+    // Start initialization
+    initMapAndAutocomplete();
+    
     form.onsubmit = async function (e) {
       e.preventDefault();
-      msg.textContent = 'Submitting...';
+      
+      // Disable submit button
+      submitButton.disabled = true;
+      setMessage('Submitting...', 'info');
+      
       var formData = new FormData(form);
       var data = {};
       formData.forEach((v, k) => (data[k] = v));
+      
+      // Add shop domain to match proxy pattern from store-locator.liquid
+      data.shop = '{{ shop.domain }}';
+      
       try {
-        var res = await fetch(form.action, {
+        var res = await fetch('/apps/storetrail/dealer-submission', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
         });
+        
         var result = await res.json();
+        
         if (result.success) {
-          msg.textContent =
-            "{{ block.settings.success_message | escape | default: 'Thank you! Your submission has been received.' }}";
+          setMessage(
+            "{{ block.settings.success_message | escape | default: 'Thank you! Your submission has been received.' }}",
+            'success'
+          );
           form.reset();
+          
+          // Reset map if initialized
+          if (map && marker) {
+            map.setCenter({ lat: 39.8283, lng: -98.5795 });
+            map.setZoom(4);
+            marker.setPosition(map.getCenter());
+          }
+          if (latInput) latInput.value = '';
+          if (lngInput) lngInput.value = '';
+          
+          // Scroll to message
+          msg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         } else {
-          msg.textContent = result.error || 'Submission failed.';
+          setMessage(result.error || 'Submission failed. Please try again.', 'error');
         }
       } catch (err) {
-        msg.textContent = 'Submission failed. Please try again.';
+        setMessage('Submission failed. Please try again.', 'error');
+      } finally {
+        // Re-enable submit button
+        submitButton.disabled = false;
       }
     };
   })();
@@ -132,6 +715,12 @@
   "target": "section",
   "settings": [
     { "type": "header", "content": "General" },
+    {
+      "type": "text",
+      "id": "google_maps_api_key",
+      "label": "Google Maps API Key",
+      "info": "Required for map functionality. Get your key from Google Cloud Console."
+    },
     { "type": "text", "id": "heading", "label": "Form Heading", "default": "Submit Your Store" },
     {
       "type": "textarea",

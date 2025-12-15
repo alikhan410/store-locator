@@ -2,13 +2,12 @@
 
 client_id = "fc0568978e5a7a64c4020dc35c935330"
 name = "Storetrail"
-handle = "storetrail"
-application_url = "https://stages-incomplete-liabilities-optional.trycloudflare.com"
+application_url = "https://wx-ul-wow-actors.trycloudflare.com"
 embedded = true
+handle = "storetrail"
 
 [build]
 automatically_update_urls_on_dev = true
-include_config_on_deploy = true
 
 [webhooks]
 api_version = "2025-07"
@@ -18,10 +17,14 @@ api_version = "2025-07"
 scopes = "read_themes,write_app_proxy,write_products,write_themes"
 
 [auth]
-redirect_urls = ["https://stages-incomplete-liabilities-optional.trycloudflare.com/auth/callback", "https://stages-incomplete-liabilities-optional.trycloudflare.com/auth/shopify/callback", "https://stages-incomplete-liabilities-optional.trycloudflare.com/api/auth/callback"]
+redirect_urls = [
+  "https://wx-ul-wow-actors.trycloudflare.com/auth/callback",
+  "https://wx-ul-wow-actors.trycloudflare.com/auth/shopify/callback",
+  "https://wx-ul-wow-actors.trycloudflare.com/api/auth/callback"
+]
 
 [app_proxy]
-url = "https://stages-incomplete-liabilities-optional.trycloudflare.com/app-proxy/storetrail"
+url = "https://wx-ul-wow-actors.trycloudflare.com/app-proxy/storetrail"
 subpath = "storetrail"
 prefix = "apps"
 
