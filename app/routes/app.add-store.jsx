@@ -1,21 +1,4 @@
-import {
-  Card,
-  Layout,
-  Page,
-  TextField,
-  Button,
-  Divider,
-  Select,
-  Text,
-  InlineStack,
-  ButtonGroup,
-  Box,
-  Spinner,
-  Banner,
-} from "@shopify/polaris";
-
 import { useState, useCallback, useEffect, useRef } from "react";
-import { TitleBar } from "@shopify/app-bridge-react";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { Form, useActionData, useLoaderData } from "@remix-run/react";
 import { stateOptions } from "../helper/options";
@@ -389,20 +372,11 @@ export default function AddStore() {
   }, [isClientState, googleMapsApiKey, formData.name]);
 
   return (
-    <Page title="Add Store">
-      <TitleBar title="Store Location Form" />
+    <s-page heading="Add Store">
 
       {/* Plan Limit Warning */}
       {!limitCheck.canAdd && (
-        <Banner
-          title="Cannot Add Store"
-          tone="critical"
-          // action={
-          // { content: "Upgrade Plan",
-          //     url: "https://admin.shopify.com/charges/store-locator-176/pricing_plans",
-          //     external:true }
-          //   }
-        >
+        <s-banner heading="Cannot Add Store" tone="critical">
           <p>{limitCheck.error}</p>
           <p>
             <a
@@ -413,12 +387,12 @@ export default function AddStore() {
               Upgrade Plan
             </a>
           </p>
-        </Banner>
+        </s-banner>
       )}
 
       {/* Near Limit Warning */}
       {limitCheck.canAdd && limitCheck.remaining <= 3 && (
-        <Banner title="Approaching Store Limit" tone="warning">
+        <s-banner heading="Approaching Store Limit" tone="warning">
           <p>
             You have {limitCheck.remaining} store slot
             {limitCheck.remaining === 1 ? "" : "s"} remaining. Consider
@@ -433,57 +407,49 @@ export default function AddStore() {
               Upgrade Plan
             </a>
           </p>
-        </Banner>
+        </s-banner>
       )}
 
-      {/* Store Slots Remaining Indicator */}
-      {limitCheck.canAdd && (
+      {/* Store Slots Remaining Indicator - only show when not approaching limit */}
+      {limitCheck.canAdd && limitCheck.remaining > 3 && (
         <>
         <s-box>
-          <s-banner tone="critical">
-            <Text as="span" fontWeight="semibold">
+          <s-banner heading="Store Slots Remaining" tone="success">
+            <s-text type="strong">
               {`You have ${limitCheck.remaining} store slot${limitCheck.remaining === 1 ? "" : "s"} remaining out of ${limitCheck.limit}.`}
-            </Text>
-            <div>
-              <Text as="span" tone="subdued" variant="bodySm">
-                Manage your locations efficiently. Upgrade your plan if you need
-                more slots.
-              </Text>
-            </div>
+            </s-text>
+            <s-text color="subdued" type="small">
+              Manage your locations efficiently. Upgrade your plan if you need
+              more slots.
+            </s-text>
           </s-banner>
         </s-box>
         <div style={{ marginBottom: "10px" }}></div>
         </>
       )}
 
-      <Layout>
-        <Layout.Section>
-          <s-section title="Store Information" sectioned>
+      <s-section heading="Store Information" sectioned>
             <Form method="post">
               <s-grid gap="base">
                 {/* Store Name and Link */}
                 <s-grid gridTemplateColumns="repeat(2, 1fr)" gap="base">
-                  <TextField
+                  <s-text-field
                     name="name"
-                    label={
-                      <>
-                        Store Name <span style={{ color: "#d82c0d" }}>*</span>
-                      </>
-                    }
+                    label="Store Name"
                     value={formData.name}
-                    onChange={handleChange("name")}
-                    aria-required="true"
+                    onChange={(e) => handleChange("name")(e.target.value)}
+                    required
                     aria-describedby="name-error"
                   />
-                  <TextField
+                  <s-text-field
                     name="link"
                     label="Store URL"
                     value={formData.link}
-                    onChange={handleChange("link")}
+                    onChange={(e) => handleChange("link")(e.target.value)}
                   />
                 </s-grid>
 
-                <Divider />
+                <s-divider />
 
                 {/* Address Group */}
                 {isClientState && (
@@ -498,7 +464,7 @@ export default function AddStore() {
                           color: "#202223",
                         }}
                       >
-                        Address <span style={{ color: "#d82c0d" }}>*</span>
+                        Address <span style={{ color: "rgb(142, 11, 33)" }}>*</span>
                       </label>
                       <input
                         ref={autocompleteRef}
@@ -526,12 +492,11 @@ export default function AddStore() {
                     </div>
 
                     <div style={{ flex: 1 }}>
-                      <TextField
+                      <s-text-field
                         name="address2"
-                        autoSize
                         label="Address Line 2"
                         value={formData.address2}
-                        onChange={handleChange("address2")}
+                        onChange={(e) => handleChange("address2")(e.target.value)}
                       />
                     </div>
                   </div>
@@ -542,50 +507,48 @@ export default function AddStore() {
                     gridTemplateColumns="@container (inline-size > 768px) 'repeat(4, 1fr)', 1fr"
                     gap="base"
                   >
-                    <Select
-                      requiredFields
+                    <s-select
+                      required
                       name="state"
-                      label={
-                        <>
-                          State <span style={{ color: "#d82c0d" }}>*</span>
-                        </>
-                      }
-                      options={stateOptions}
-                      onChange={handleChange("state")}
+                      label="State"
                       value={formData.state}
+                      onChange={(e) => handleChange("state")(e.target.value)}
                       aria-required="true"
                       aria-describedby="state-error"
-                    />
-                    <TextField
+                    >
+                      {stateOptions.map((option) => (
+                        <s-option
+                          key={option.value}
+                          value={option.value}
+                          disabled={option.disabled}
+                        >
+                          {option.label}
+                        </s-option>
+                      ))}
+                    </s-select>
+                    <s-text-field
                       name="city"
-                      label={
-                        <>
-                          City <span style={{ color: "#d82c0d" }}>*</span>
-                        </>
-                      }
-                      onChange={handleChange("city")}
+                      label="City"
                       value={formData.city}
-                      aria-required="true"
+                      onChange={(e) => handleChange("city")(e.target.value)}
+                      required
                       aria-describedby="city-error"
                     />
-                    <TextField
+                    <s-text-field
                       name="zip"
-                      type="integer"
-                      label={
-                        <>
-                          ZIP Code <span style={{ color: "#d82c0d" }}>*</span>
-                        </>
-                      }
+                      type="number"
+                      label="ZIP Code"
                       value={formData.zip}
-                      onChange={handleChange("zip")}
-                      aria-required="true"
+                      onChange={(e) => handleChange("zip")(e.target.value)}
+                      required
                       aria-describedby="zip-error"
                     />
-                    <TextField
+                    <s-text-field
                       name="phone"
                       label="Phone Number"
                       value={formData.phone}
-                      onChange={(val) => {
+                      onChange={(e) => {
+                        const val = e.target.value;
                         const formatted = formatPhone(val.replace(/\D/g, "")); // Remove non-numeric
                         handleChange("phone")(formatted);
                       }}
@@ -595,53 +558,38 @@ export default function AddStore() {
                   </s-grid>
                 </s-query-container>
 
-                <Divider />
+                <s-divider />
 
                 <s-grid gridTemplateColumns="repeat(2, 1fr)" gap="base">
-                  <TextField
+                  <s-text-field
                     name="lat"
-                    label={
-                      <>
-                        Latitude{" "}
-                        <Text as="span" color="subdued" variant="bodySm">
-                          (optional)
-                        </Text>
-                      </>
-                    }
+                    label="Latitude (optional)"
                     value={formData.lat}
-                    onChange={handleChange("lat")}
+                    onChange={(e) => handleChange("lat")(e.target.value)}
                     type="number"
                   />
-                  <TextField
+                  <s-text-field
                     name="lng"
-                    label={
-                      <>
-                        Longitude{" "}
-                        <Text as="span" color="subdued" variant="bodySm">
-                          (optional)
-                        </Text>
-                      </>
-                    }
+                    label="Longitude (optional)"
                     value={formData.lng}
-                    onChange={handleChange("lng")}
+                    onChange={(e) => handleChange("lng")(e.target.value)}
                     type="number"
                   />
                 </s-grid>
-                <TextField
+                <s-text-area
                   name="notes"
                   label="Notes"
-                  multiline={3}
+                  rows={3}
                   value={formData.notes}
-                  onChange={handleChange("notes")}
-                  autoComplete="off"
+                  onChange={(e) => handleChange("notes")(e.target.value)}
                   placeholder="Add extra notes or reminders here"
                 />
 
-                <Divider />
+                <s-divider />
 
                 {/* Map full width below address */}
                 {isClientState && (
-                  <Box width="100%" style={{ marginBottom: 16 }}>
+                  <s-box paddingBlockEnd="base">
                     <div style={{ position: "relative" }}>
                       {/* The container Google Maps will mutate */}
                       <div
@@ -666,30 +614,26 @@ export default function AddStore() {
                             zIndex: 1,
                           }}
                         >
-                          <Spinner size="small" />
+                          <s-spinner accessibilityLabel="Loading map" size="base" />
                         </div>
                       )}
                     </div>
-                  </Box>
+                  </s-box>
                 )}
 
-                <InlineStack align="end">
-                  <ButtonGroup>
-                    <Button
-                      submit
-                      variant="primary"
-                      aria-label="Save store information and create new store location"
-                    >
-                      Save Store Info
-                    </Button>
-                  </ButtonGroup>
-                </InlineStack>
+                <s-stack direction="inline" justifyContent="end" gap="base">
+                  <s-button
+                    type="submit"
+                    variant="primary"
+                    accessibilityLabel="Save store information and create new store location"
+                  >
+                    Save Store Info
+                  </s-button>
+                </s-stack>
               </s-grid>
             </Form>
           </s-section>
           <s-box paddingBlockEnd="large-200" />
-        </Layout.Section>
-      </Layout>
-    </Page>
+    </s-page>
   );
 }

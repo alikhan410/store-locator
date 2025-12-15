@@ -19,8 +19,6 @@ import { TitleBar } from "@shopify/app-bridge-react";
 import { useState, useCallback, useEffect } from "react";
 import { useLoaderData, useActionData, useSubmit } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
-import { useFeatureGate } from "../helper/featureGating";
-import { FeatureButton } from "../components/UpgradePrompt";
 
 export const loader = async ({ request }) => {
   const { session, billing } = await authenticate.admin(request);
@@ -43,24 +41,9 @@ export const loader = async ({ request }) => {
 };
 
 export const action = async ({ request }) => {
-  const { session } = await authenticate.admin(request);
+  const { session, billing } = await authenticate.admin(request);
   const prisma = (await import("../db.server")).default;
-  const { isFeatureEnabledForSubscription } = await import(
-    "../helper/featureGating"
-  );
-
-  // Check if dealer submission is enabled for this plan
-  const { appSubscriptions } = await billing.check();
-  const subscription = appSubscriptions?.[0];
-
-  if (
-    !isFeatureEnabledForSubscription("dealer_submission_form", subscription)
-  ) {
-    return {
-      success: false,
-      error: "Submission management is not available on your current plan.",
-    };
-  }
+  const { checkStoreLimit } = await import("../helper/planLimits");
 
   const formData = await request.formData();
   const action = formData.get("action");
@@ -78,6 +61,23 @@ export const action = async ({ request }) => {
 
       if (!submission) {
         return { success: false, error: "Submission not found." };
+      }
+
+      // Check plan limits before creating the store
+      const { appSubscriptions } = await billing.check();
+      const subscription = appSubscriptions?.[0];
+
+      const currentStoreCount = await prisma.store.count({
+        where: { shop: session.shop },
+      });
+
+      const limitCheck = checkStoreLimit(subscription, currentStoreCount);
+
+      if (!limitCheck.canAdd) {
+        return {
+          success: false,
+          error: limitCheck.error || "Cannot approve submission: store limit reached.",
+        };
       }
 
       // Create the store from the submission
@@ -157,7 +157,7 @@ export const action = async ({ request }) => {
   }
 };
 
-async function sendKlaviyoNotification(submission, status, shop) {
+export async function sendKlaviyoNotification(submission, status, shop) {
   const klaviyoApiKey = process.env.KLAVIYO_PRIVATE_API_KEY;
 
   if (!klaviyoApiKey) {
@@ -231,10 +231,6 @@ export default function Submissions() {
   const { submissions, subscription } = useLoaderData();
   const actionData = useActionData();
   const submit = useSubmit();
-  const dealerSubmissionGate = useFeatureGate(
-    "dealer_submission_form",
-    subscription,
-  );
 
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -287,48 +283,6 @@ export default function Submissions() {
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString();
   };
-
-  if (!dealerSubmissionGate.isEnabled) {
-    return (
-      <Page title="Store Submissions">
-        <TitleBar title="Store Submissions" />
-        <Layout>
-          <Layout.Section>
-            <Card>
-              <Box padding="400">
-                <InlineStack align="space-between">
-                  <Text variant="headingMd" as="h2">
-                    Store Submissions Management
-                  </Text>
-                  <FeatureButton
-                    feature="dealer_submission_form"
-                    subscription={subscription}
-                    variant="primary"
-                  >
-                    Upgrade to Pro Plan
-                  </FeatureButton>
-                </InlineStack>
-                <Box paddingBlockStart="400">
-                  <Banner title="Submission Management" tone="info">
-                    <p>
-                      Upgrade to Pro Plan to unlock submission management
-                      features:
-                    </p>
-                    <ul>
-                      <li>Review and approve store submissions</li>
-                      <li>Email notifications for submissions</li>
-                      <li>Admin approval workflow</li>
-                      <li>Submission management dashboard</li>
-                    </ul>
-                  </Banner>
-                </Box>
-              </Box>
-            </Card>
-          </Layout.Section>
-        </Layout>
-      </Page>
-    );
-  }
 
   const resourceName = {
     singular: "submission",

@@ -1,21 +1,4 @@
-import {
-  Card,
-  Layout,
-  Page,
-  FormLayout,
-  TextField,
-  Button,
-  Divider,
-  Select,
-  Text,
-  InlineStack,
-  ButtonGroup,
-  Box,
-  Spinner,
-} from "@shopify/polaris";
-
 import { useState, useCallback, useEffect, useRef } from "react";
-import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { stateOptions } from "../helper/options";
 import {
@@ -388,50 +371,36 @@ export default function AddStore() {
   }, [isClientState, googleMapsApiKey, formData.name]);
 
   return (
-    <Page
-      title="Edit Store"
-      primaryAction={{
-        content: "Delete Store",
-        accessibilityLabel: "Delete this store",
-        destructive: true,
-        onAction: handleDelete,
-      }}
-      secondaryActions={[
-        {
-          content: "Go Back",
-          accessibilityLabel: "Go back to view stores page",
-          onAction: () => navigate("/app/view-stores"),
-        },
-      ]}
-    >
-      <TitleBar title="Store Location Form" />
-      <Layout>
-        <Layout.Section>
-          <Card title="Store Information" sectioned>
-            {/* TODO: Add data-save-bar attribute to Form to enable automatic save bar functionality for better UX when editing stores */}
-            <Form method="post">
-              <FormLayout>
-                {/* Store Name and Link */}
-                <FormLayout.Group>
-                  <TextField
-                    name="name"
-                    label={
-                      <>
-                        Store Name <span style={{ color: "#d82c0d" }}>*</span>
-                      </>
-                    }
-                    value={formData.name}
-                    onChange={handleChange("name")}
-                  />
-                  <TextField
-                    name="link"
-                    label="Store URL"
-                    value={formData.link}
-                    onChange={handleChange("link")}
-                  />
-                </FormLayout.Group>
+    <s-page heading="Edit Store">
+      <s-button
+        slot="primary-action"
+        onClick={() => navigate("/app/view-stores")}
+        accessibilityLabel="Go back to view stores page"
+      >
+        Go Back
+      </s-button>
+      <s-section heading="Store Information" sectioned>
+        {/* TODO: Add data-save-bar attribute to Form to enable automatic save bar functionality for better UX when editing stores */}
+        <Form method="post">
+          <s-grid gap="base">
+            {/* Store Name and Link */}
+            <s-grid gridTemplateColumns="repeat(2, 1fr)" gap="base">
+              <s-text-field
+                name="name"
+                label="Store Name"
+                value={formData.name}
+                onChange={(e) => handleChange("name")(e.target.value)}
+                required
+              />
+              <s-text-field
+                name="link"
+                label="Store URL"
+                value={formData.link}
+                onChange={(e) => handleChange("link")(e.target.value)}
+              />
+            </s-grid>
 
-                <Divider />
+            <s-divider />
 
                 {/* Address Group */}
                 {isClientState && (
@@ -446,7 +415,7 @@ export default function AddStore() {
                           color: "#202223",
                         }}
                       >
-                        Address <span style={{ color: "#d82c0d" }}>*</span>
+                        Address <span style={{ color: "rgb(142, 11, 33)" }}>*</span>
                       </label>
                       <input
                         ref={autocompleteRef}
@@ -470,153 +439,147 @@ export default function AddStore() {
                     </div>
 
                     <div style={{ flex: 1 }}>
-                      <TextField
+                      <s-text-field
                         name="address2"
-                        autoSize
                         label="Address Line 2"
                         value={formData.address2}
-                        onChange={handleChange("address2")}
+                        onChange={(e) => handleChange("address2")(e.target.value)}
                       />
                     </div>
                   </div>
                 )}
 
-                <FormLayout.Group condensed>
-                  <Select
-                    requiredFields
-                    name="state"
-                    label={
-                      <>
-                        State <span style={{ color: "#d82c0d" }}>*</span>
-                      </>
-                    }
-                    options={stateOptions}
-                    onChange={handleChange("state")}
-                    value={formData.state}
-                  />
-                  <TextField
-                    name="city"
-                    label={
-                      <>
-                        City <span style={{ color: "#d82c0d" }}>*</span>
-                      </>
-                    }
-                    onChange={handleChange("city")}
-                    value={formData.city}
-                  />
-                  <TextField
-                    name="zip"
-                    type="integer"
-                    label={
-                      <>
-                        ZIP Code <span style={{ color: "#d82c0d" }}>*</span>
-                      </>
-                    }
-                    value={formData.zip}
-                    onChange={handleChange("zip")}
-                  />
-                  <TextField
-                    name="phone"
-                    label="Phone Number"
-                    value={formData.phone}
-                    onChange={(val) => {
-                      const formatted = formatPhone(val.replace(/\D/g, "")); // Remove non-numeric
-                      handleChange("phone")(formatted);
-                    }}
-                    type="tel"
-                  />
-                </FormLayout.Group>
-
-                <Divider />
-
-                <FormLayout.Group>
-                  <TextField
-                    name="lat"
-                    label={
-                      <>
-                        Latitude{" "}
-                        <Text as="span" color="subdued" variant="bodySm">
-                          (optional)
-                        </Text>
-                      </>
-                    }
-                    value={formData.lat}
-                    onChange={handleChange("lat")}
-                    type="number"
-                  />
-                  <TextField
-                    name="lng"
-                    label={
-                      <>
-                        Longitude{" "}
-                        <Text as="span" color="subdued" variant="bodySm">
-                          (optional)
-                        </Text>
-                      </>
-                    }
-                    value={formData.lng}
-                    onChange={handleChange("lng")}
-                    type="number"
-                  />
-                </FormLayout.Group>
-                <TextField
-                  name="notes"
-                  label="Notes"
-                  multiline={3}
-                  value={formData.notes}
-                  onChange={handleChange("notes")}
-                  autoComplete="off"
-                  placeholder="Add extra notes or reminders here"
+            <s-query-container>
+              <s-grid
+                gridTemplateColumns="@container (inline-size > 768px) 'repeat(4, 1fr)', 1fr"
+                gap="base"
+              >
+                <s-select
+                  required
+                  name="state"
+                  label="State"
+                  value={formData.state}
+                  onChange={(e) => handleChange("state")(e.target.value)}
+                >
+                  {stateOptions.map((option) => (
+                    <s-option
+                      key={option.value}
+                      value={option.value}
+                      disabled={option.disabled}
+                    >
+                      {option.label}
+                    </s-option>
+                  ))}
+                </s-select>
+                <s-text-field
+                  name="city"
+                  label="City"
+                  value={formData.city}
+                  onChange={(e) => handleChange("city")(e.target.value)}
+                  required
                 />
+                <s-text-field
+                  name="zip"
+                  type="number"
+                  label="ZIP Code"
+                  value={formData.zip}
+                  onChange={(e) => handleChange("zip")(e.target.value)}
+                  required
+                />
+                <s-text-field
+                  name="phone"
+                  label="Phone Number"
+                  value={formData.phone}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const formatted = formatPhone(val.replace(/\D/g, "")); // Remove non-numeric
+                    handleChange("phone")(formatted);
+                  }}
+                  type="tel"
+                />
+              </s-grid>
+            </s-query-container>
 
-                <Divider />
+            <s-divider />
 
-                {/* Map full width below address */}
-                {isClientState && (
-                  <Box width="100%" style={{ marginBottom: 16 }}>
-                    <div style={{ position: "relative" }}>
-                      {/* The container Google Maps will mutate */}
-                      <div
-                        ref={mapRef}
-                        style={{
-                          width: "100%",
-                          height: "300px",
-                          border: "1px solid #c9cccf",
-                          borderRadius: "4px",
-                          backgroundColor: "#f6f6f7",
-                        }}
-                      />
+            <s-grid gridTemplateColumns="repeat(2, 1fr)" gap="base">
+              <s-text-field
+                name="lat"
+                label="Latitude (optional)"
+                value={formData.lat}
+                onChange={(e) => handleChange("lat")(e.target.value)}
+                type="number"
+              />
+              <s-text-field
+                name="lng"
+                label="Longitude (optional)"
+                value={formData.lng}
+                onChange={(e) => handleChange("lng")(e.target.value)}
+                type="number"
+              />
+            </s-grid>
+            <s-text-area
+              name="notes"
+              label="Notes"
+              rows={3}
+              value={formData.notes}
+              onChange={(e) => handleChange("notes")(e.target.value)}
+              placeholder="Add extra notes or reminders here"
+            />
 
-                      {/* Spinner absolutely positioned on top */}
-                      {!isMapLoaded && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            top: "50%",
-                            left: "50%",
-                            transform: "translate(-50%, -50%)",
-                            zIndex: 1,
-                          }}
-                        >
-                          <Spinner size="small" />
-                        </div>
-                      )}
+            <s-divider />
+
+            {/* Map full width below address */}
+            {isClientState && (
+              <s-box paddingBlockEnd="base">
+                <div style={{ position: "relative" }}>
+                  {/* The container Google Maps will mutate */}
+                  <div
+                    ref={mapRef}
+                    style={{
+                      width: "100%",
+                      height: "300px",
+                      border: "1px solid #c9cccf",
+                      borderRadius: "4px",
+                      backgroundColor: "#f6f6f7",
+                    }}
+                  />
+
+                  {/* Spinner absolutely positioned on top */}
+                  {!isMapLoaded && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                        zIndex: 1,
+                      }}
+                    >
+                      <s-spinner accessibilityLabel="Loading map" size="base" />
                     </div>
-                  </Box>
-                )}
+                  )}
+                </div>
+              </s-box>
+            )}
 
-                <InlineStack align="end">
-                  <ButtonGroup>
-                    <Button submit variant="primary">
-                      Update
-                    </Button>
-                  </ButtonGroup>
-                </InlineStack>
-              </FormLayout>
-            </Form>
-          </Card>
-        </Layout.Section>
-      </Layout>
+            <s-stack direction="inline" justifyContent="end" gap="base">
+              <s-button
+                icon="alert-triangle"
+                variant="secondary"
+                tone="critical"
+                onClick={handleDelete}
+                accessibilityLabel="Delete this store"
+              >
+                Delete Store
+              </s-button>
+              <s-button type="submit" variant="primary">
+                Update
+              </s-button>
+            </s-stack>
+          </s-grid>
+        </Form>
+      </s-section>
 
       <DeleteStoreModal
         onClose={handleCancelDelete}
@@ -624,6 +587,6 @@ export default function AddStore() {
         storeName={store.name}
         loading={deleteLoading}
       />
-    </Page>
+    </s-page>
   );
 }

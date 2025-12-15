@@ -18,8 +18,7 @@ import {
   US_STATES_PLACE_IDS,
 } from "../helper/states";
 import { authenticate } from "../shopify.server";
-import { useFeatureGate } from "../helper/featureGating";
-import { FeatureButton } from "../components/UpgradePrompt";
+import { cleanupGoogleMapsInstances } from "../helper/googleMapsLoader";
 
 export const loader = async ({ request }) => {
   const { session, billing } = await authenticate.admin(request);
@@ -47,10 +46,8 @@ export default function ChoroplethPage() {
   const { stores, subscription, googleMapsApiKey } = useLoaderData();
   const navigate = useNavigate();
   const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
   const [selectedState, setSelectedState] = useState(null);
-
-  // Feature gating for choropleth
-  const choroplethGate = useFeatureGate("choropleth", subscription);
 
   // Phase 3: Data Processing
   const {
@@ -116,8 +113,14 @@ export default function ChoroplethPage() {
   const states = createStatesDataForChoropleth(stores);
 
   useEffect(() => {
+    if (!mapRef.current || !googleMapsApiKey) return;
+
+    let isMounted = true;
+
     const initMap = async () => {
       await loadGoogleMaps(googleMapsApiKey);
+
+      if (!isMounted || !mapRef.current) return;
 
       const { Map } = await google.maps.importLibrary("maps");
 
@@ -133,6 +136,9 @@ export default function ChoroplethPage() {
         mapTypeControl: true,
         fullscreenControl: true,
       });
+
+      // Store map instance for cleanup
+      mapInstanceRef.current = map;
 
       const featureLayer = map.getFeatureLayer(
         google.maps.FeatureType.ADMINISTRATIVE_AREA_LEVEL_1,
@@ -165,7 +171,18 @@ export default function ChoroplethPage() {
     };
 
     initMap();
-  }, [stores, googleMapsApiKey]);
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      cleanupGoogleMapsInstances(
+        mapInstanceRef.current,
+        null, // no marker
+        null, // no autocomplete
+      );
+      mapInstanceRef.current = null;
+    };
+  }, [stores, googleMapsApiKey, states]);
 
   const handleViewStores = () => {
     navigate("/app/view-stores");
@@ -175,57 +192,6 @@ export default function ChoroplethPage() {
     setSelectedState(stateCode);
     // Phase 4.2 will add zoom functionality here
   };
-
-  // Show upgrade prompt if choropleth feature is not enabled
-  if (!choroplethGate.isEnabled) {
-    return (
-      <Page title="Store Distribution Map">
-        <TitleBar title="Store Distribution Map" />
-        <Layout>
-          <Layout.Section>
-            <Card>
-              <Box padding="400">
-                <InlineStack align="space-between">
-                  <Text variant="headingMd" as="h2">
-                    Store Distribution Analysis
-                  </Text>
-                  <FeatureButton
-                    feature="choropleth"
-                    subscription={subscription}
-                    variant="primary"
-                  >
-                    Upgrade to Pro Plan
-                  </FeatureButton>
-                </InlineStack>
-                <Box paddingBlockStart="400">
-                  <Banner title="Advanced Analytics" tone="info">
-                    <p>
-                      Upgrade to Pro Plan to unlock advanced store distribution
-                      analytics:
-                    </p>
-                    <ul>
-                      <li>
-                        Interactive choropleth map showing store density by
-                        state
-                      </li>
-                      <li>
-                        Geographic business intelligence and market analysis
-                      </li>
-                      <li>State-level store distribution statistics</li>
-                      <li>
-                        Color-coded intensity mapping for strategic insights
-                      </li>
-                      <li>Regional performance analysis and trends</li>
-                    </ul>
-                  </Banner>
-                </Box>
-              </Box>
-            </Card>
-          </Layout.Section>
-        </Layout>
-      </Page>
-    );
-  }
 
   return (
     <Page
