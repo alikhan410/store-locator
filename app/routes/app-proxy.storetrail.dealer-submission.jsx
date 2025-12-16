@@ -32,6 +32,20 @@ export const action = async ({ request }) => {
     );
   }
 
+  // Get shop from URL (app proxy includes shop in authenticated URL)
+  const url = new URL(request.url);
+  const shop = url.searchParams.get("shop");
+
+  if (!shop) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Shop parameter missing" }),
+      {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
+
   let data;
   try {
     data = await request.json();
@@ -59,7 +73,6 @@ export const action = async ({ request }) => {
     country,
     website,
     notes,
-    shop,
   } = data;
 
   if (
@@ -70,8 +83,7 @@ export const action = async ({ request }) => {
     !address ||
     !city ||
     !state ||
-    !zip ||
-    !shop
+    !zip
   ) {
     return new Response(
       JSON.stringify({ success: false, error: "Please fill in all required fields." }),
