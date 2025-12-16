@@ -7,22 +7,19 @@ import {
   Button,
   Badge,
   InlineStack,
-  Modal,
-  TextField,
-  Select,
-  Banner,
-  Box,
   EmptyState,
-  Spinner,
+  BlockStack,
 } from "@shopify/polaris";
-import { TitleBar } from "@shopify/app-bridge-react";
+import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { useState, useCallback, useEffect } from "react";
 import { useLoaderData, useActionData, useSubmit } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
+import { ApproveRejectSubmissionModal } from "../components/modals";
 
 export const loader = async ({ request }) => {
   const { session, billing } = await authenticate.admin(request);
   const prisma = (await import("../db.server")).default;
+  const { checkStoreLimit } = await import("../helper/planLimits");
 
   // Get subscription information
   const { appSubscriptions } = await billing.check();
@@ -34,9 +31,43 @@ export const loader = async ({ request }) => {
     orderBy: { createdAt: "desc" },
   });
 
+  // Get current store count and check limits
+  const currentStoreCount = await prisma.store.count({
+    where: { shop: session.shop },
+  });
+
+  const limitCheck = checkStoreLimit(subscription, currentStoreCount);
+
+  // Calculate submission analytics
+  const now = new Date();
+  const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  
+  const totalSubmissions = submissions.length;
+  const pendingSubmissions = submissions.filter(
+    (s) => s.status === "PENDING"
+  ).length;
+  const approvedSubmissions = submissions.filter(
+    (s) => s.status === "APPROVED"
+  ).length;
+  const rejectedSubmissions = submissions.filter(
+    (s) => s.status === "REJECTED"
+  ).length;
+  const recentSubmissions = submissions.filter(
+    (s) => new Date(s.createdAt) > oneWeekAgo
+  ).length;
+
   return {
     submissions,
     subscription,
+    limitCheck,
+    currentStoreCount,
+    analytics: {
+      total: totalSubmissions,
+      pending: pendingSubmissions,
+      approved: approvedSubmissions,
+      rejected: rejectedSubmissions,
+      recent: recentSubmissions,
+    },
   };
 };
 
@@ -102,8 +133,6 @@ export const action = async ({ request }) => {
         where: { id: submissionId },
         data: {
           status: "APPROVED",
-          reviewedBy: session.shop,
-          reviewedAt: new Date(),
           adminNotes: formData.get("adminNotes") || null,
         },
       });
@@ -127,8 +156,6 @@ export const action = async ({ request }) => {
         where: { id: submissionId, shop: session.shop },
         data: {
           status: "REJECTED",
-          reviewedBy: session.shop,
-          reviewedAt: new Date(),
           adminNotes: formData.get("adminNotes") || null,
         },
       });
@@ -228,44 +255,70 @@ export async function sendKlaviyoNotification(submission, status, shop) {
 }
 
 export default function Submissions() {
-  const { submissions, subscription } = useLoaderData();
+  const {
+    submissions,
+    subscription,
+    limitCheck,
+    currentStoreCount,
+    analytics,
+  } = useLoaderData();
   const actionData = useActionData();
   const submit = useSubmit();
+  const shopify = useAppBridge();
 
   const [selectedSubmission, setSelectedSubmission] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [modalAction, setModalAction] = useState("");
-  const [adminNotes, setAdminNotes] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null); // 'approve' or 'reject'
 
-  const handleApprove = useCallback((submission) => {
+  const handleReview = useCallback((submission) => {
     setSelectedSubmission(submission);
-    setModalAction("approve");
-    setShowModal(true);
-  }, []);
+    setPendingAction(null);
+    setLoading(false);
+    shopify.modal.show("approve-reject-submission-modal");
+  }, [shopify]);
 
-  const handleReject = useCallback((submission) => {
-    setSelectedSubmission(submission);
-    setModalAction("reject");
-    setShowModal(true);
-  }, []);
+  const handleModalSubmit = useCallback(
+    (adminNotes, actionFromModal) => {
+      setPendingAction(actionFromModal);
+      setLoading(true);
+      const formData = new FormData();
+      formData.append("action", actionFromModal);
+      formData.append("submissionId", selectedSubmission.id);
+      formData.append("adminNotes", adminNotes || "");
 
-  const handleModalSubmit = useCallback(() => {
-    const formData = new FormData();
-    formData.append("action", modalAction);
-    formData.append("submissionId", selectedSubmission.id);
-    formData.append("adminNotes", adminNotes);
-
-    submit(formData, { method: "post" });
-    setShowModal(false);
-    setSelectedSubmission(null);
-    setAdminNotes("");
-  }, [modalAction, selectedSubmission, adminNotes, submit]);
+      submit(formData, { method: "post" });
+      // Don't close modal or reset state here - wait for actionData to update
+    },
+    [selectedSubmission, submit],
+  );
 
   const handleModalClose = useCallback(() => {
-    setShowModal(false);
+    shopify.modal.hide("approve-reject-submission-modal");
     setSelectedSubmission(null);
-    setAdminNotes("");
-  }, []);
+    setLoading(false);
+    setPendingAction(null);
+  }, [shopify]);
+
+  // Feedback when submission is approved/rejected and close modal
+  useEffect(() => {
+    if (actionData?.success !== undefined && loading) {
+      // Action completed - show toast
+      if (actionData?.success) {
+        shopify.toast.show(actionData.message || "Action completed successfully!");
+      } else {
+        shopify.toast.show(actionData.error || "Action failed. Please try again.", {
+          isError: true,
+        });
+      }
+      // Close modal and reset state after a brief delay
+      setTimeout(() => {
+        shopify.modal.hide("approve-reject-submission-modal");
+        setSelectedSubmission(null);
+        setLoading(false);
+        setPendingAction(null);
+      }, 500);
+    }
+  }, [actionData, loading, shopify]);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -328,16 +381,9 @@ export default function Submissions() {
             <Button
               size="micro"
               variant="primary"
-              onClick={() => handleApprove(submission)}
+              onClick={() => handleReview(submission)}
             >
-              Approve
-            </Button>
-            <Button
-              size="micro"
-              variant="critical"
-              onClick={() => handleReject(submission)}
-            >
-              Reject
+              Review
             </Button>
           </InlineStack>
         )}
@@ -346,22 +392,73 @@ export default function Submissions() {
   ));
 
   return (
-    <Page title="Store Submissions">
+    <Page>
       <TitleBar title="Store Submissions" />
 
-      {actionData?.success && (
-        <Banner title="Success" tone="success">
-          <p>{actionData.message}</p>
-        </Banner>
-      )}
-
-      {actionData?.success === false && (
-        <Banner title="Error" tone="critical">
-          <p>{actionData.error}</p>
-        </Banner>
-      )}
-
       <Layout>
+        {/* Analytics Cards */}
+        <Layout.Section>
+          <InlineStack gap="400">
+            <Card>
+              <BlockStack gap="200">
+                <Text variant="headingMd" as="h3">
+                  Total Submissions
+                </Text>
+                <Text variant="heading2xl" as="p">
+                  {analytics.total}
+                </Text>
+                <Text variant="bodyMd" color="subdued">
+                  {analytics.recent > 0
+                    ? `+${analytics.recent} this week`
+                    : "No new submissions this week"}
+                </Text>
+              </BlockStack>
+            </Card>
+
+            <Card>
+              <BlockStack gap="200">
+                <Text variant="headingMd" as="h3">
+                  Pending Review
+                </Text>
+                <Text variant="heading2xl" as="p" color="warning">
+                  {analytics.pending}
+                </Text>
+                <Text variant="bodyMd" color="subdued">
+                  Awaiting approval
+                </Text>
+              </BlockStack>
+            </Card>
+
+            <Card>
+              <BlockStack gap="200">
+                <Text variant="headingMd" as="h3">
+                  Approved
+                </Text>
+                <Text variant="heading2xl" as="p" color="success">
+                  {analytics.approved}
+                </Text>
+                <Text variant="bodyMd" color="subdued">
+                  Successfully added
+                </Text>
+              </BlockStack>
+            </Card>
+
+            <Card>
+              <BlockStack gap="200">
+                <Text variant="headingMd" as="h3">
+                  Rejected
+                </Text>
+                <Text variant="heading2xl" as="p" color="critical">
+                  {analytics.rejected}
+                </Text>
+                <Text variant="bodyMd" color="subdued">
+                  Declined submissions
+                </Text>
+              </BlockStack>
+            </Card>
+          </InlineStack>
+        </Layout.Section>
+
         <Layout.Section>
           <Card>
             {submissions.length > 0 ? (
@@ -396,60 +493,15 @@ export default function Submissions() {
         </Layout.Section>
       </Layout>
 
-      <Modal
-        open={showModal}
+      <ApproveRejectSubmissionModal
         onClose={handleModalClose}
-        title={`${modalAction === "approve" ? "Approve" : "Reject"} Store Submission`}
-        primaryAction={{
-          content: modalAction === "approve" ? "Approve" : "Reject",
-          onAction: handleModalSubmit,
-          destructive: modalAction === "reject",
-        }}
-        secondaryActions={[
-          {
-            content: "Cancel",
-            onAction: handleModalClose,
-          },
-        ]}
-      >
-        <Modal.Section>
-          <Text variant="bodyMd" as="p">
-            {modalAction === "approve"
-              ? "This will create a new store from the submission and approve it."
-              : "This will reject the submission. The submitter will be notified."}
-          </Text>
-
-          <Box paddingBlockStart="400">
-            <TextField
-              label="Admin Notes (optional)"
-              value={adminNotes}
-              onChange={setAdminNotes}
-              multiline={3}
-              placeholder="Add any notes about this decision..."
-            />
-          </Box>
-
-          {selectedSubmission && (
-            <Box paddingBlockStart="400">
-              <Text variant="headingSm" as="h3">
-                Submission Details
-              </Text>
-              <Text variant="bodyMd" as="p">
-                <strong>Store:</strong> {selectedSubmission.storeName}
-              </Text>
-              <Text variant="bodyMd" as="p">
-                <strong>Contact:</strong> {selectedSubmission.contactName} (
-                {selectedSubmission.contactEmail})
-              </Text>
-              <Text variant="bodyMd" as="p">
-                <strong>Address:</strong> {selectedSubmission.address},{" "}
-                {selectedSubmission.city}, {selectedSubmission.state}{" "}
-                {selectedSubmission.zip}
-              </Text>
-            </Box>
-          )}
-        </Modal.Section>
-      </Modal>
+        onConfirm={handleModalSubmit}
+        submission={selectedSubmission}
+        loading={loading}
+        pendingAction={pendingAction}
+        limitCheck={limitCheck}
+        currentStoreCount={currentStoreCount}
+      />
     </Page>
   );
 }
