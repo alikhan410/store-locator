@@ -55,6 +55,7 @@ export default function ChoroplethPage() {
     storesWithoutCoordinates,
     storesByState,
     stateStats,
+    growthMetrics,
   } = useMemo(() => {
     // 3.1: Filter stores with coordinates
     const storesWithCoordinates = stores.filter(
@@ -78,24 +79,71 @@ export default function ChoroplethPage() {
     }, {});
 
     // 3.4: Calculate state statistics and sort
+    const now = new Date();
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+    
     const stateStats = Object.entries(storesByState)
-      .map(([stateCode, stateStores]) => ({
-        stateCode,
-        stateName: US_STATES_PLACE_IDS[stateCode] ? stateCode : stateCode,
-        storeCount: stateStores.length,
-        storesWithCoords: stateStores.filter((store) => store.lat && store.lng)
-          .length,
-        storesWithoutCoords: stateStores.filter(
-          (store) => !store.lat || !store.lng,
-        ).length,
-      }))
+      .map(([stateCode, stateStores]) => {
+        const storesWithCoords = stateStores.filter((store) => store.lat && store.lng).length;
+        const storesWithoutCoords = stateStores.filter((store) => !store.lat || !store.lng).length;
+        const recentStores = stateStores.filter(
+          (store) => new Date(store.createdAt) > oneWeekAgo
+        ).length;
+        const monthlyStores = stateStores.filter(
+          (store) => new Date(store.createdAt) > oneMonthAgo
+        ).length;
+        const geocodingPercent = stateStores.length > 0 
+          ? Math.round((storesWithCoords / stateStores.length) * 100)
+          : 0;
+        
+        return {
+          stateCode,
+          stateName: US_STATES_PLACE_IDS[stateCode] ? stateCode : stateCode,
+          storeCount: stateStores.length,
+          storesWithCoords,
+          storesWithoutCoords,
+          recentStores,
+          monthlyStores,
+          geocodingPercent,
+        };
+      })
       .sort((a, b) => b.storeCount - a.storeCount); // Sort by store count descending
+
+    // 3.5: Calculate growth metrics (moved from inline JSX)
+    const weeklyGrowth = stores.filter((s) => new Date(s.createdAt) > oneWeekAgo).length;
+    const monthlyGrowth = stores.filter((s) => new Date(s.createdAt) > oneMonthAgo).length;
+    const sixMonthGrowth = stores.filter((s) => new Date(s.createdAt) > sixMonthsAgo).length;
+
+    // Calculate monthly breakdown for chart
+    const monthCounts = [];
+    for (let i = 5; i >= 0; i--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+      const count = stores.filter(
+        (s) => new Date(s.createdAt) >= monthStart && new Date(s.createdAt) <= monthEnd
+      ).length;
+      monthCounts.push({
+        month: monthStart.toLocaleDateString('en-US', { month: 'short' }),
+        count,
+      });
+    }
+
+    const growthMetrics = {
+      weeklyGrowth,
+      monthlyGrowth,
+      sixMonthGrowth,
+      monthCounts,
+      maxMonthCount: Math.max(...monthCounts.map(m => m.count), 1),
+    };
 
     return {
       storesWithCoordinates,
       storesWithoutCoordinates,
       storesByState,
       stateStats,
+      growthMetrics,
     };
   }, [stores]);
 
@@ -184,9 +232,7 @@ export default function ChoroplethPage() {
     };
   }, [stores, googleMapsApiKey, states]);
 
-  const handleViewStores = () => {
-    navigate("/app/view-stores");
-  };
+
 
   const handleStateClick = (stateCode) => {
     setSelectedState(stateCode);
@@ -195,17 +241,84 @@ export default function ChoroplethPage() {
 
   return (
     <Page
-      title="Store Distribution Map"
-      primaryAction={{
-        content: "View All Stores",
-        onAction: handleViewStores,
-      }}
+      title="Choropleth Map"
+      secondaryActions={[
+        {
+          content: "View All Stores",
+          onAction: () => navigate("/app/view-stores"),
+        },
+      ]}
     >
       <TitleBar title="Store Distribution Map" />
 
-      <Layout>
+      <Box paddingBlockEnd="2400">
+        <Layout>
         <Layout.Section>
-          <Card>
+          {/* Analytics Cards */}
+          <InlineStack gap="400" align="stretch" wrap>
+            <Card>
+              <BlockStack gap="200">
+                <Text variant="headingMd" as="h3">
+                  Total Stores
+                </Text>
+                <Text variant="heading2xl" as="p">
+                  {stores.length}
+                </Text>
+                <Text variant="bodyMd" color="subdued">
+                  All store locations
+                </Text>
+              </BlockStack>
+            </Card>
+
+            <Card>
+              <BlockStack gap="200">
+                <Text variant="headingMd" as="h3">
+                  On Map
+                </Text>
+                <Text variant="heading2xl" as="p" color="success">
+                  {storesWithCoordinates.length}
+                </Text>
+                <Text variant="bodyMd" color="subdued">
+                  {stores.length > 0
+                    ? `${Math.round((storesWithCoordinates.length / stores.length) * 100)}% geocoded`
+                    : "0% geocoded"}
+                </Text>
+              </BlockStack>
+            </Card>
+
+            <Card>
+              <BlockStack gap="200">
+                <Text variant="headingMd" as="h3">
+                  States Covered
+                </Text>
+                <Text variant="heading2xl" as="p">
+                  {stateStats.length}
+                </Text>
+                <Text variant="bodyMd" color="subdued">
+                  {stateStats.length === 1 ? "state" : "states"} with stores
+                </Text>
+              </BlockStack>
+            </Card>
+
+            <Card>
+              <BlockStack gap="200">
+                <Text variant="headingMd" as="h3">
+                  Avg per State
+                </Text>
+                <Text variant="heading2xl" as="p">
+                  {stateStats.length > 0
+                    ? Math.round((stores.length / stateStats.length) * 10) / 10
+                    : 0}
+                </Text>
+                <Text variant="bodyMd" color="subdued">
+                  Average stores per state
+                </Text>
+              </BlockStack>
+            </Card>
+          </InlineStack>
+
+          <Box paddingBlockStart="400">
+            <Card>
             <div
               ref={mapRef}
               style={{
@@ -256,81 +369,158 @@ export default function ChoroplethPage() {
               </BlockStack>
             </div>
           </Card>
+          </Box>
         </Layout.Section>
 
         <Layout.Section secondary>
-          {/* Phase 5.2: Statistics Sidebar */}
-          <Card>
-            <BlockStack gap="400">
-              <div>
+          <BlockStack gap="400">
+            {/* Growth & Activity Card */}
+            <Card>
+              <BlockStack gap="400">
                 <Text variant="headingMd" as="h3" fontWeight="bold">
-                  Statistics
+                  Growth & Activity
                 </Text>
-                <BlockStack gap="200">
-                  <div
-                    style={{ display: "flex", justifyContent: "space-between" }}
-                  >
-                    <Text variant="bodyMd">Total Stores:</Text>
-                    <Badge tone="info">{stores.length}</Badge>
-                  </div>
-                  <div
-                    style={{ display: "flex", justifyContent: "space-between" }}
-                  >
-                    <Text variant="bodyMd">On Map:</Text>
-                    <Badge tone="success">{storesWithCoordinates.length}</Badge>
-                  </div>
-                  <div
-                    style={{ display: "flex", justifyContent: "space-between" }}
-                  >
-                    <Text variant="bodyMd">States Covered:</Text>
-                    <Badge tone="info">{stateStats.length}</Badge>
-                  </div>
-                </BlockStack>
-              </div>
 
-              {/* Phase 5.4: Stores without coordinates warning */}
-              {storesWithoutCoordinates.length > 0 && (
-                <Banner tone="warning">
-                  <Text variant="bodySm">
-                    {storesWithoutCoordinates.length} store(s) missing
-                    coordinates
-                  </Text>
-                </Banner>
-              )}
+                {/* Recent Activity Metrics */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                    gap: "16px",
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: "16px",
+                      backgroundColor: "#f6f6f7",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <BlockStack gap="100">
+                      <Text variant="bodySm" tone="subdued">
+                        This Week
+                      </Text>
+                      <Text variant="headingLg" as="p" fontWeight="bold">
+                        +{growthMetrics.weeklyGrowth}
+                      </Text>
+                      <Text variant="bodySm" tone="success">
+                        New stores
+                      </Text>
+                    </BlockStack>
+                  </div>
 
-              {/* Phase 5.3: Top States List */}
-              <div>
-                <Text variant="headingMd" as="h3" fontWeight="bold">
-                  Top States
-                </Text>
-                <BlockStack gap="200">
-                  {stateStats.slice(0, 10).map((state) => (
+                  <div
+                    style={{
+                      padding: "16px",
+                      backgroundColor: "#f6f6f7",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <BlockStack gap="100">
+                      <Text variant="bodySm" tone="subdued">
+                        This Month
+                      </Text>
+                      <Text variant="headingLg" as="p" fontWeight="bold">
+                        +{growthMetrics.monthlyGrowth}
+                      </Text>
+                      <Text variant="bodySm" tone="subdued">
+                        New stores
+                      </Text>
+                    </BlockStack>
+                  </div>
+
+                  <div
+                    style={{
+                      padding: "16px",
+                      backgroundColor: "#f6f6f7",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <BlockStack gap="100">
+                      <Text variant="bodySm" tone="subdued">
+                        Last 6 Months
+                      </Text>
+                      <Text variant="headingLg" as="p" fontWeight="bold">
+                        +{growthMetrics.sixMonthGrowth}
+                      </Text>
+                      <Text variant="bodySm" tone="subdued">
+                        New stores
+                      </Text>
+                    </BlockStack>
+                  </div>
+                </div>
+
+                {/* Growth Timeline Visualization */}
+                {stores.length > 0 && (
+                  <BlockStack gap="200">
+                    <Text variant="bodyMd" fontWeight="semibold">
+                      Monthly Growth Trend
+                    </Text>
                     <div
-                      key={state.stateCode}
                       style={{
                         display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "8px",
-                        cursor: "pointer",
-                        borderRadius: "4px",
-                        backgroundColor:
-                          selectedState === state.stateCode
-                            ? "#f6f6f7"
-                            : "transparent",
+                        alignItems: "flex-end",
+                        gap: "8px",
+                        height: "140px",
+                        padding: "12px",
+                        backgroundColor: "#f6f6f7",
+                        borderRadius: "8px",
                       }}
-                      onClick={() => handleStateClick(state.stateCode)}
                     >
-                      <Text variant="bodyMd">{state.stateCode}</Text>
-                      <Badge tone="info">{state.storeCount}</Badge>
+                      {growthMetrics.monthCounts.map((month, idx) => {
+                        const barHeight = growthMetrics.maxMonthCount > 0 
+                          ? (month.count / growthMetrics.maxMonthCount) * 100 
+                          : 0;
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              flex: 1,
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: "100%",
+                                height: "100px",
+                                display: "flex",
+                                alignItems: "flex-end",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: "70%",
+                                  height: `${barHeight}%`,
+                                  backgroundColor: "#008060",
+                                  borderRadius: "4px 4px 0 0",
+                                  transition: "height 0.3s",
+                                  minHeight: month.count > 0 ? "8px" : "0",
+                                }}
+                                title={`${month.count} stores`}
+                              />
+                            </div>
+                            <Text variant="bodySm" tone="subdued">
+                              {month.month}
+                            </Text>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
-                </BlockStack>
-              </div>
-            </BlockStack>
-          </Card>
+                    <Text variant="bodySm" tone="subdued">
+                      Store additions over the last 6 months
+                    </Text>
+                  </BlockStack>
+                )}
+              </BlockStack>
+            </Card>
+          </BlockStack>
         </Layout.Section>
       </Layout>
+      </Box>
     </Page>
   );
 }
