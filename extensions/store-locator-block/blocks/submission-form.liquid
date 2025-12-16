@@ -28,20 +28,21 @@
       <div class="form-field">
         <label for="storeName">
           {{- block.settings.label_store_name | default: 'Store Name' -}}
-          <span class="required">*</span>
+          
         </label>
         <input type="text" id="storeName" name="storeName" required value="Test Store Location">
       </div>
       <div class="form-field">
-        <label for="storeType">Store Type</label>
-        <input type="text" id="storeType" name="storeType" value="Retail Store">
+        <label for="storeType">
+          Store Type
+          <span class="required">*</span>
+        </label>
+        <select id="storeType" name="storeType" required>
+          <option value="">Select store type</option>
+          <option value="Retail" selected>Retail</option>
+          <option value="Wholesale">Wholesale</option>
+        </select>
       </div>
-      {% if block.settings.show_tags %}
-        <div class="form-field">
-          <label for="tags">Tags (comma separated)</label>
-          <input type="text" id="tags" name="tags" placeholder="e.g. retail, authorized dealer" value="retail, authorized dealer, test">
-        </div>
-      {% endif %}
       <div class="form-field full-width">
         <label for="description">Description</label>
         <textarea id="description" name="description" rows="3">This is a test store submission for testing purposes.</textarea>
@@ -158,17 +159,6 @@
         </div>
       {% endif %}
     </div>
-
-    <!-- Additional Information Section -->
-      {% if block.settings.show_notes %}
-        <div class="form-section">
-          <h3 class="section-title">Additional Information</h3>
-          <div class="form-field full-width">
-            <label for="notes">Notes</label>
-            <textarea id="notes" name="notes" rows="3">Test submission notes - please ignore.</textarea>
-          </div>
-        </div>
-      {% endif %}
 
     <!-- Submit Button -->
     <div class="form-actions">
@@ -667,9 +657,6 @@
       var data = {};
       formData.forEach((v, k) => (data[k] = v));
       
-      // Add shop domain to match proxy pattern from store-locator.liquid
-      data.shop = '{{ shop.domain }}';
-      
       try {
         var res = await fetch('/apps/storetrail/dealer-submission', {
           method: 'POST',
@@ -754,8 +741,6 @@
     { "type": "header", "content": "Fields" },
     { "type": "checkbox", "id": "show_contact_phone", "label": "Show Contact Phone", "default": true },
     { "type": "checkbox", "id": "require_contact_phone", "label": "Require Contact Phone", "default": false },
-    { "type": "checkbox", "id": "show_tags", "label": "Show Tags Field", "default": true },
-    { "type": "checkbox", "id": "show_notes", "label": "Show Notes Field", "default": true },
     { "type": "text", "id": "label_store_name", "label": "Store Name Label", "default": "Store Name*" },
     { "type": "text", "id": "label_contact_name", "label": "Contact Name Label", "default": "Contact Name*" },
     { "type": "text", "id": "label_contact_email", "label": "Contact Email Label", "default": "Contact Email*" },

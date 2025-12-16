@@ -1,4 +1,4 @@
-import { db } from "../db.server.js";
+import prisma from "../db.server.js";
 import { stateOptions } from "../helper/options.js";
 import { authenticate } from "../shopify.server.js";
 
@@ -9,10 +9,18 @@ export const loader = async ({ request }) => {
 };
 
 export const action = async ({ request }) => {
-  console.log("Dealer submission action called:", request.method, request.url);
-  
-  // Authenticate the app proxy request (validates it's from Shopify)
-  await authenticate.public.appProxy(request);
+  try {
+    // Authenticate the app proxy request (validates it's from Shopify)
+    await authenticate.public.appProxy(request);
+  } catch (authError) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Authentication failed" }),
+      {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
   
   if (request.method !== "POST") {
     return new Response(
@@ -39,28 +47,31 @@ export const action = async ({ request }) => {
 
   const {
     storeName,
+    storeType,
     contactName,
     contactEmail,
     contactPhone,
     address,
+    address2,
     city,
     state,
     zip,
-    storeType,
-    description,
-    tags,
+    country,
     website,
+    notes,
     shop,
   } = data;
 
   if (
     !storeName ||
+    !storeType ||
     !contactName ||
     !contactEmail ||
     !address ||
     !city ||
     !state ||
-    !zip
+    !zip ||
+    !shop
   ) {
     return new Response(
       JSON.stringify({ success: false, error: "Please fill in all required fields." }),
@@ -73,22 +84,23 @@ export const action = async ({ request }) => {
 
   try {
     // Create submission in database
-    const submission = await db.storeSubmission.create({
+    const submission = await prisma.storeSubmission.create({
       data: {
         storeName,
+        storeType,
         contactName,
         contactEmail,
         contactPhone,
         address,
+        address2: address2 || null,
         city,
         state,
         zip,
-        storeType,
-        description,
-        tags,
-        website,
-        shop: shop || "public",
-        status: "pending",
+        country: country || "United States",
+        website: website || null,
+        notes: notes || null,
+        shop,
+        status: "PENDING",
       },
     });
 
@@ -100,7 +112,6 @@ export const action = async ({ request }) => {
       }
     );
   } catch (error) {
-    console.error("Submission error:", error);
     return new Response(
       JSON.stringify({
         success: false,
