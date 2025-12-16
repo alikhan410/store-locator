@@ -377,36 +377,36 @@ export default function AddStore() {
       {/* Plan Limit Warning */}
       {!limitCheck.canAdd && (
         <s-banner heading="Cannot Add Store" tone="critical">
-          <p>{limitCheck.error}</p>
-          <p>
-            <a
-              href="https://admin.shopify.com/charges/store-locator-176/pricing_plans"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Upgrade Plan
-            </a>
-          </p>
+          <s-paragraph>{limitCheck.error}</s-paragraph>
+          <s-button
+            slot="secondary-actions"
+            variant="secondary"
+            onClick={() => {
+              window.open("https://admin.shopify.com/charges/storetrail/pricing_plans", "_blank");
+            }}
+          >
+            Upgrade Plan
+          </s-button>
         </s-banner>
       )}
 
       {/* Near Limit Warning */}
       {limitCheck.canAdd && limitCheck.remaining <= 3 && (
         <s-banner heading="Approaching Store Limit" tone="warning">
-          <p>
+          <s-paragraph>
             You have {limitCheck.remaining} store slot
             {limitCheck.remaining === 1 ? "" : "s"} remaining. Consider
             upgrading your plan.
-          </p>
-          <p>
-            <a
-              href="https://admin.shopify.com/charges/store-locator-176/pricing_plans"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Upgrade Plan
-            </a>
-          </p>
+          </s-paragraph>
+          <s-button
+            slot="secondary-actions"
+            variant="secondary"
+            onClick={() => {
+              window.open("https://admin.shopify.com/charges/storetrail/pricing_plans", "_blank");
+            }}
+          >
+            Upgrade Plan
+          </s-button>
         </s-banner>
       )}
 
