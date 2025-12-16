@@ -8,6 +8,7 @@ import {
   ChoiceList,
   Divider,
   InlineStack,
+  TextField,
 } from "@shopify/polaris";
 
 // Export Modal Component
@@ -193,6 +194,218 @@ export function DeleteStoreModal({
               Delete Store
             </Button>
             <Button onClick={onClose} variant="secondary">
+              Cancel
+            </Button>
+          </InlineStack>
+        </Box>
+      </Box>
+    </Modal>
+  );
+}
+
+// Approve/Reject Submission Modal Component
+export function ApproveRejectSubmissionModal({
+  onClose,
+  onConfirm,
+  submission = null,
+  loading = false,
+  pendingAction = null,
+  limitCheck = null,
+  currentStoreCount = 0,
+}) {
+  const [adminNotes, setAdminNotes] = useState("");
+
+  const handleApprove = () => {
+    onConfirm(adminNotes, "approve");
+  };
+
+  const handleReject = () => {
+    onConfirm(adminNotes, "reject");
+  };
+
+  return (
+    <Modal
+      id="approve-reject-submission-modal"
+      onClose={onClose}
+      large
+    >
+      <TitleBar title="Review Store Submission" onClose={onClose} />
+      <Box padding="400">
+        <BlockStack gap="400">
+          <Text variant="bodyMd" tone="subdued">
+            Review the submission details below. Use{" "}
+            <strong>Approve</strong> to create a new store or{" "}
+            <strong>Reject</strong> to decline this submission.
+          </Text>
+
+          {/* Store Count */}
+          {limitCheck && (
+            <>
+              <Box paddingBlockStart="200">
+                <Text variant="bodyMd" as="p">
+                  <strong>Store count:</strong> {currentStoreCount}/
+                  {limitCheck.limit === "Unlimited" ? "∞" : limitCheck.limit}
+                </Text>
+              </Box>
+              <Divider />
+            </>
+          )}
+
+          {submission && (
+            <Box paddingBlockStart="100">
+              <BlockStack gap="400">
+                {/* Store Information */}
+                <BlockStack gap="200">
+                  <Text variant="headingSm" as="h3">
+                    Store Information
+                  </Text>
+                  <Text variant="bodyMd" as="p">
+                    <strong>Store Name:</strong> {submission.storeName}
+                  </Text>
+                  <Text variant="bodyMd" as="p">
+                    <strong>Store Type:</strong> {submission.storeType}
+                  </Text>
+                  {submission.website && (
+                    <Text variant="bodyMd" as="p">
+                      <strong>Website:</strong>{" "}
+                      <a
+                        href={submission.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "#008060" }}
+                      >
+                        {submission.website}
+                      </a>
+                    </Text>
+                  )}
+                </BlockStack>
+
+                <Divider />
+
+                {/* Contact Information */}
+                <BlockStack gap="200">
+                  <Text variant="headingSm" as="h3">
+                    Contact Information
+                  </Text>
+                  <Text variant="bodyMd" as="p">
+                    <strong>Name:</strong> {submission.contactName}
+                  </Text>
+                  <Text variant="bodyMd" as="p">
+                    <strong>Email:</strong>{" "}
+                    <a
+                      href={`mailto:${submission.contactEmail}`}
+                      style={{ color: "#008060" }}
+                    >
+                      {submission.contactEmail}
+                    </a>
+                  </Text>
+                  {submission.contactPhone && (
+                    <Text variant="bodyMd" as="p">
+                      <strong>Phone:</strong>{" "}
+                      <a
+                        href={`tel:${submission.contactPhone}`}
+                        style={{ color: "#008060" }}
+                      >
+                        {submission.contactPhone}
+                      </a>
+                    </Text>
+                  )}
+                </BlockStack>
+
+                <Divider />
+
+                {/* Address Information */}
+                <BlockStack gap="200">
+                  <Text variant="headingSm" as="h3">
+                    Address Information
+                  </Text>
+                  <Text variant="bodyMd" as="p">
+                    <strong>Address:</strong> {submission.address}
+                    {submission.address2 && `, ${submission.address2}`}
+                  </Text>
+                  <Text variant="bodyMd" as="p">
+                    <strong>City:</strong> {submission.city}
+                  </Text>
+                  <Text variant="bodyMd" as="p">
+                    <strong>State:</strong> {submission.state}
+                  </Text>
+                  <Text variant="bodyMd" as="p">
+                    <strong>ZIP Code:</strong> {submission.zip}
+                  </Text>
+                  {submission.country && (
+                    <Text variant="bodyMd" as="p">
+                      <strong>Country:</strong> {submission.country}
+                    </Text>
+                  )}
+                </BlockStack>
+
+                {/* Additional Notes */}
+                {submission.notes && (
+                  <>
+                    <Divider />
+                    <BlockStack gap="200">
+                      <Text variant="headingSm" as="h3">
+                        Additional Notes
+                      </Text>
+                      <Text variant="bodyMd" as="p" tone="subdued">
+                        {submission.notes}
+                      </Text>
+                    </BlockStack>
+                  </>
+                )}
+
+                {/* Submission Metadata */}
+                <Divider />
+                <BlockStack gap="200">
+                  <Text variant="headingSm" as="h3">
+                    Submission Details
+                  </Text>
+                  <Text variant="bodyMd" as="p" tone="subdued">
+                    <strong>Submitted:</strong>{" "}
+                    {new Date(submission.createdAt).toLocaleString()}
+                  </Text>
+                  {submission.status && (
+                    <Text variant="bodyMd" as="p" tone="subdued">
+                      <strong>Status:</strong> {submission.status}
+                    </Text>
+                  )}
+                </BlockStack>
+              </BlockStack>
+            </Box>
+          )}
+
+          {/* Admin Notes - Moved to bottom before buttons */}
+          <Box paddingBlockStart="400">
+            <TextField
+              label="Admin Notes (optional)"
+              value={adminNotes}
+              onChange={setAdminNotes}
+              multiline={3}
+              placeholder="Add any notes about this decision..."
+            />
+          </Box>
+        </BlockStack>
+
+        <Box paddingBlockStart="400">
+          <InlineStack gap="400">
+            <Button
+              variant="primary"
+              onClick={handleApprove}
+              loading={loading && pendingAction === "approve"}
+              disabled={loading}
+            >
+              Approve
+            </Button>
+            <Button
+              variant="tertiary"
+              tone="critical"
+              onClick={handleReject}
+              loading={loading && pendingAction === "reject"}
+              disabled={loading}
+            >
+              Reject
+            </Button>
+            <Button onClick={onClose} variant="secondary" disabled={loading}>
               Cancel
             </Button>
           </InlineStack>
