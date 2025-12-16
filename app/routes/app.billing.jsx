@@ -1,7 +1,6 @@
-import { Card, Page, Text, BlockStack, InlineStack, Badge, Banner, Button } from "@shopify/polaris";
 import { useLoaderData } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
-import { checkStoreLimit, getPlanFeatures } from "../helper/planLimits";
+import { checkStoreLimit } from "../helper/planLimits";
 
 export const loader = async ({ request }) => {
   const { session, billing } = await authenticate.admin(request);
@@ -9,22 +8,12 @@ export const loader = async ({ request }) => {
 
   const { appSubscriptions } = await billing.check();
   const subscription = appSubscriptions?.[0];
-  
-  // Debug: Log what Shopify is returning
-  console.log("🔍 [BILLING] Shopify subscription data:", {
-    subscription: subscription,
-    name: subscription?.name,
-    status: subscription?.status,
-    appSubscriptions: appSubscriptions
-  });
 
   const currentStoreCount = await prisma.store.count({
     where: { shop: session.shop },
   });
 
   const limitCheck = checkStoreLimit(subscription, currentStoreCount);
-  
-  console.log("🔍 [BILLING] Limit check result:", limitCheck);
 
   // Determine plan name for display
   let planName = "Free Plan";
@@ -42,94 +31,108 @@ export const loader = async ({ request }) => {
     currentStoreCount,
     remainingSlots: limitCheck.remaining,
     canAdd: limitCheck.canAdd,
-    features: getPlanFeatures(subscription?.name),
   };
 };
 
-export default function Settings() {
-  const { plan, status, storeLimit, currentStoreCount, remainingSlots, canAdd, features } =
+export default function Billing() {
+  const { plan, status, storeLimit, currentStoreCount, remainingSlots, canAdd } =
     useLoaderData();
-
-  const statusBadge = (
-    <Badge tone={status === "ACTIVE" ? "success" : "critical"}>
-      {status}
-    </Badge>
-  );
 
   const usagePercentage = storeLimit > 0 ? (currentStoreCount / storeLimit) * 100 : 0;
   const isNearLimit = usagePercentage >= 80;
   const isAtLimit = usagePercentage >= 100;
 
   return (
-    <Page title="Settings">
-      <BlockStack gap="500">
+    <s-page heading="Billing & Subscription">
+      <ui-title-bar title="Billing & Subscription" />
+      <s-stack direction="block" gap="large-200">
         {/* Warning Banner for Near Limit */}
         {isNearLimit && !isAtLimit && (
-          <Banner
-            title="Approaching Store Limit"
+          <s-banner
+            heading="Approaching Store Limit"
             tone="warning"
-            action={{ content: "Upgrade Plan", url: "https://admin.shopify.com/charges/store-locator-176/pricing_plans" }}
           >
-            <p>You're using {usagePercentage.toFixed(0)}% of your store limit. Consider upgrading to add more stores.</p>
-          </Banner>
+            <s-paragraph>You're using {Math.floor(usagePercentage)}% of your store limit. Consider upgrading to add more stores.</s-paragraph>
+            <s-button
+              slot="secondary-actions"
+              variant="secondary"
+              onClick={() => {
+                window.open("https://admin.shopify.com/charges/storetrail/pricing_plans", "_blank");
+              }}
+            >
+              Upgrade Plan
+            </s-button>
+          </s-banner>
         )}
 
         {/* Error Banner for At Limit */}
         {isAtLimit && (
-          <Banner
-            title="Store Limit Reached"
+          <s-banner
+            heading="Store Limit Reached"
             tone="critical"
-            action={{ content: "Upgrade Plan", url: "https://admin.shopify.com/charges/store-locator-176/pricing_plans" }}
           >
-            <p>You've reached your store limit. Upgrade your plan to add more stores.</p>
-          </Banner>
+            <s-paragraph>You've reached your store limit. Upgrade your plan to add more stores.</s-paragraph>
+            <s-button
+              slot="secondary-actions"
+              variant="secondary"
+              onClick={() => {
+                window.open("https://admin.shopify.com/charges/storetrail/pricing_plans", "_blank");
+              }}
+            >
+              Upgrade Plan
+            </s-button>
+          </s-banner>
         )}
 
-        <Card title="Subscription Plan" sectioned>
-          <InlineStack gap="400" align="space-between">
-            <BlockStack gap="100">
-              <Text variant="headingMd">Plan: {plan}</Text>
-              <Text>Status: {statusBadge}</Text>
-            </BlockStack>
-            <BlockStack gap="100" align="end">
-              <Text>
-                Store Usage: {currentStoreCount} / {storeLimit}
-              </Text>
-              <Text variant="bodySm" tone={isNearLimit ? "critical" : "subdued"}>
-                You have {remainingSlots} store slot
-                {remainingSlots === 1 ? "" : "s"} left.
-              </Text>
-            </BlockStack>
-          </InlineStack>
-        </Card>
+        <s-section heading="Subscription Plan">
+          <s-stack direction="block" gap="base">
+            <s-grid gridTemplateColumns="1fr 1fr" gap="large-400" alignItems="start">
+              <s-stack direction="block" gap="small-200">
+                <s-text color="subdued">Plan</s-text>
+                <s-heading>{plan}</s-heading>
+              </s-stack>
+              <s-stack direction="block" gap="small-200">
+                <s-text color="subdued">Status</s-text>
+                <s-badge tone={status === "ACTIVE" ? "success" : "critical"}>{status}</s-badge>
+              </s-stack>
+            </s-grid>
+            <s-divider />
+            <s-grid gridTemplateColumns="1fr 1fr" gap="large-400" alignItems="start">
+              <s-stack direction="block" gap="small-200">
+                <s-text color="subdued">Store Usage</s-text>
+                <s-text>
+                  {currentStoreCount} / {storeLimit}
+                </s-text>
+              </s-stack>
+              <s-stack direction="block" gap="small-200">
+                <s-text color="subdued">Remaining Slots</s-text>
+                {isNearLimit ? (
+                  <s-text tone="critical">
+                    {remainingSlots} store slot{remainingSlots === 1 ? "" : "s"} remaining
+                  </s-text>
+                ) : (
+                  <s-text>
+                    {remainingSlots} store slot{remainingSlots === 1 ? "" : "s"} remaining
+                  </s-text>
+                )}
+              </s-stack>
+            </s-grid>
+          </s-stack>
+        </s-section>
 
-        {/* Plan Features */}
-        {features && features.length > 0 && (
-          <Card title="Plan Features" sectioned>
-            <InlineStack gap="200" wrap>
-              {features.map((feature, index) => (
-                <Badge key={index} tone="info">
-                  {feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </Badge>
-              ))}
-            </InlineStack>
-          </Card>
-        )}
-
-        <Card sectioned>
-          <Text as="p">
+        <s-section>
+          <s-paragraph>
             Want to change your plan?{" "}
-            <a
-              href="https://admin.shopify.com/charges/store-locator-176/pricing_plans"
+            <s-link
+              href="https://admin.shopify.com/charges/storetrail/pricing_plans"
               target="_blank"
-              rel="noopener noreferrer"
             >
               View plans
-            </a>{" "}
+            </s-link>{" "}
             on Shopify.
-          </Text>
-        </Card>
-      </BlockStack>
-    </Page>
+          </s-paragraph>
+        </s-section>
+      </s-stack>
+    </s-page>
   );
 }
