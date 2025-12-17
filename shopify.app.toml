@@ -24,7 +24,7 @@ redirect_urls = [
 ]
 
 [app_proxy]
-url = "https://wx-ul-wow-actors.trycloudflare.com/app-proxy/storetrail"
+url = "/app-proxy/storetrail"
 subpath = "storetrail"
 prefix = "apps"
 
