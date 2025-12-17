@@ -269,6 +269,27 @@ export default function Submissions() {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [loading, setLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState(null); // 'approve' or 'reject'
+  const [dismissed, setDismissed] = useState({
+    submissionFormBlock: false,
+  });
+  const [expanded, setExpanded] = useState({
+    submissionFormBlock: false,
+  });
+
+  // Load dismissed sections from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('submissions_dismissed');
+    if (stored) {
+      setDismissed(JSON.parse(stored));
+    }
+  }, []);
+
+  // Save dismissed state to localStorage
+  const handleDismiss = (section) => {
+    const newDismissed = { ...dismissed, [section]: true };
+    setDismissed(newDismissed);
+    localStorage.setItem('submissions_dismissed', JSON.stringify(newDismissed));
+  };
 
   const handleReview = useCallback((submission) => {
     setSelectedSubmission(submission);
@@ -398,66 +419,140 @@ export default function Submissions() {
       <Layout>
         {/* Analytics Cards */}
         <Layout.Section>
-          <InlineStack gap="400">
-            <Card>
-              <BlockStack gap="200">
-                <Text variant="headingMd" as="h3">
-                  Total Submissions
-                </Text>
-                <Text variant="heading2xl" as="p">
+          <s-query-container>
+            <s-grid gridTemplateColumns="@container (inline-size <= 480px) 1fr, 'repeat(4, 1fr)'" gap="base">
+            {/* Total Submissions Card */}
+            <s-box background="base" border="base" borderRadius="base" padding="base">
+              <s-stack direction="block" gap="small-200">
+                <s-stack direction="inline" alignItems="center" justifyContent="space-between">
+                  <s-heading>Total Submissions</s-heading>
+                </s-stack>
+                <s-text variant="heading2xl">
                   {analytics.total}
-                </Text>
-                <Text variant="bodyMd" color="subdued">
+                </s-text>
+                <s-text color="subdued">
                   {analytics.recent > 0
                     ? `+${analytics.recent} this week`
                     : "No new submissions this week"}
-                </Text>
-              </BlockStack>
-            </Card>
+                </s-text>
+              </s-stack>
+            </s-box>
 
-            <Card>
-              <BlockStack gap="200">
-                <Text variant="headingMd" as="h3">
-                  Pending Review
-                </Text>
-                <Text variant="heading2xl" as="p" color="warning">
+            {/* Pending Review Card */}
+            <s-box background="base" border="base" borderRadius="base" padding="base">
+              <s-stack direction="block" gap="small-200">
+                <s-stack direction="inline" alignItems="center" justifyContent="space-between">
+                  <s-heading>Pending Review</s-heading>
+                </s-stack>
+                <s-text variant="heading2xl" tone="warning">
                   {analytics.pending}
-                </Text>
-                <Text variant="bodyMd" color="subdued">
+                </s-text>
+                <s-text color="subdued">
                   Awaiting approval
-                </Text>
-              </BlockStack>
-            </Card>
+                </s-text>
+              </s-stack>
+            </s-box>
 
-            <Card>
-              <BlockStack gap="200">
-                <Text variant="headingMd" as="h3">
-                  Approved
-                </Text>
-                <Text variant="heading2xl" as="p" color="success">
+            {/* Approved Card */}
+            <s-box background="base" border="base" borderRadius="base" padding="base">
+              <s-stack direction="block" gap="small-200">
+                <s-stack direction="inline" alignItems="center" justifyContent="space-between">
+                  <s-heading>Approved</s-heading>
+                </s-stack>
+                <s-text variant="heading2xl" tone="success">
                   {analytics.approved}
-                </Text>
-                <Text variant="bodyMd" color="subdued">
+                </s-text>
+                <s-text color="subdued">
                   Successfully added
-                </Text>
-              </BlockStack>
-            </Card>
+                </s-text>
+              </s-stack>
+            </s-box>
 
-            <Card>
-              <BlockStack gap="200">
-                <Text variant="headingMd" as="h3">
-                  Rejected
-                </Text>
-                <Text variant="heading2xl" as="p" color="critical">
+            {/* Rejected Card */}
+            <s-box background="base" border="base" borderRadius="base" padding="base">
+              <s-stack direction="block" gap="small-200">
+                <s-stack direction="inline" alignItems="center" justifyContent="space-between">
+                  <s-heading>Rejected</s-heading>
+                </s-stack>
+                <s-text variant="heading2xl" tone="critical">
                   {analytics.rejected}
-                </Text>
-                <Text variant="bodyMd" color="subdued">
+                </s-text>
+                <s-text color="subdued">
                   Declined submissions
-                </Text>
-              </BlockStack>
-            </Card>
-          </InlineStack>
+                </s-text>
+              </s-stack>
+            </s-box>
+          </s-grid>
+          </s-query-container>
         </Layout.Section>
+
+        {/* Submission Form Block Setup Section */}
+        {!dismissed.submissionFormBlock && (
+          <Layout.Section>
+            <s-section>
+              <s-grid gap="base">
+                <s-grid gap="small-200">
+                  <s-grid
+                    gridTemplateColumns="1fr auto auto"
+                    gap="small-300"
+                    alignItems="center"
+                  >
+                    <s-heading>Enable the submission form block</s-heading>
+                    <s-button
+                      accessibilityLabel="Dismiss Guide"
+                      onClick={() => handleDismiss('submissionFormBlock')}
+                      variant="tertiary"
+                      tone="neutral"
+                      icon="x"
+                    />
+                    <s-button
+                      accessibilityLabel="Toggle setup guide"
+                      onClick={() => setExpanded({ ...expanded, submissionFormBlock: !expanded.submissionFormBlock })}
+                      variant="tertiary"
+                      tone="neutral"
+                      icon={expanded.submissionFormBlock ? "chevron-up" : "chevron-down"}
+                    />
+                  </s-grid>
+                  <s-paragraph>
+                    Add the dealer submission form block to your theme so dealers can submit store locations directly from your storefront.
+                  </s-paragraph>
+                </s-grid>
+                {expanded.submissionFormBlock && (
+                  <s-box borderRadius="base" border="base" background="base">
+                    <s-box padding="small">
+                      <s-text fontWeight="medium">1. Click "Go to Theme Editor" below to open your theme customization</s-text>
+                    </s-box>
+                    <s-divider />
+                    <s-box padding="small">
+                      <s-text fontWeight="medium">2. Navigate to the page where you want to add the form (or create a new page)</s-text>
+                    </s-box>
+                    <s-divider />
+                    <s-box padding="small">
+                      <s-text fontWeight="medium">3. In the left sidebar, click "Add block" or "Add section"</s-text>
+                    </s-box>
+                    <s-divider />
+                    <s-box padding="small">
+                      <s-text fontWeight="medium">4. Find "Storetrail" in the Apps section and select "Dealer Submission Form"</s-text>
+                    </s-box>
+                    <s-divider />
+                    <s-box padding="small">
+                      <s-text fontWeight="medium">5. Configure your Google Maps API key in the block settings</s-text>
+                    </s-box>
+                    <s-divider />
+                    <s-box padding="small">
+                      <s-text fontWeight="medium">6. Save your changes and publish your theme</s-text>
+                    </s-box>
+                    <s-box padding="small" paddingBlockStart="base">
+                      <s-button onClick={() => window.open('shopify://admin/themes', '_top')}>
+                        Go to Theme Editor
+                      </s-button>
+                    </s-box>
+                  </s-box>
+                )}
+              </s-grid>
+            </s-section>
+          </Layout.Section>
+        )}
 
         <Layout.Section>
           <Card>
