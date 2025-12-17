@@ -140,6 +140,7 @@ export default function IndexTableWithViewsSearchFilterSorting() {
   const [taggedWith, setTaggedWith] = useState("");
   const [queryValue, setQueryValue] = useState("");
   const [stateFilter, setStateFilter] = useState([]);
+  const [navigatingToMap, setNavigatingToMap] = useState(false);
 
   // Add back client-side filtering for Phase 1
   const [filteredStores, setFilteredStores] = useState(stores);
@@ -720,7 +721,11 @@ export default function IndexTableWithViewsSearchFilterSorting() {
           icon: GlobeIcon,
           content: "Distribution Map",
           accessibilityLabel: "View store distribution map",
-          onAction: () => navigate("/app/choropleth"),
+          loading: navigatingToMap,
+          onAction: () => {
+            setNavigatingToMap(true);
+            navigate("/app/choropleth");
+          },
         },
         {
           icon: ExportIcon,
