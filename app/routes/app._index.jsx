@@ -1,46 +1,12 @@
 import { useEffect, useState } from "react";
 import { useLoaderData, useNavigate } from "@remix-run/react";
-import {
-  Page,
-  Layout,
-  Text,
-  Card,
-  Button,
-  BlockStack,
-  Box,
-  List,
-  Link,
-  InlineStack,
-  Badge,
-  Icon,
-  EmptyState,
-  Spinner,
-  Divider,
-  ProgressBar,
-} from "@shopify/polaris";
-import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
-import {
-  AlertCircleIcon,
-  PhoneIcon,
-  ExportIcon,
-  ImportIcon,
-  PlusIcon,
-  ListBulletedIcon,
-  LocationIcon,
-} from "@shopify/polaris-icons";
+import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
-import { useFeatureGate } from "../helper/featureGating";
-import { FeatureButton } from "../components/UpgradePrompt";
-import styles from "./_index/styles.module.css";
 
 export const loader = async ({ request }) => {
-  const { session, billing } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
 
   const prisma = (await import("../db.server")).default;
-
-  // Get subscription information
-  const { appSubscriptions } = await billing.check();
-  const subscription = appSubscriptions?.[0];
 
   // Get all stores for the current shop with metrics
   const stores = await prisma.store.findMany({
@@ -69,9 +35,28 @@ export const loader = async ({ request }) => {
   ).length;
   const missingPhone = stores.filter((store) => !store.phone).length;
 
+  // Calculate store distribution by state for chart
+  const storesByState = stores.reduce((acc, store) => {
+    if (store.state) {
+      acc[store.state] = (acc[store.state] || 0) + 1;
+    }
+    return acc;
+  }, {});
+
+  // Get top states sorted by count
+  const topStates = Object.entries(storesByState)
+    .filter(([stateCode, count]) => stateCode && count > 0) // Filter out empty states
+    .map(([stateCode, count]) => ({ stateCode, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8); // Top 8 states
+
+  // Calculate max count (ensure at least 1 to avoid division by zero)
+  const maxStateCount = topStates.length > 0 
+    ? Math.max(...topStates.map(s => s.count), 1) 
+    : 1;
+
   return {
     stores: stores.slice(0, 10), // Recent 10 for activity feed
-    subscription,
     metrics: {
       totalStores,
       recentStoresCount: recentStores.length,
@@ -85,15 +70,78 @@ export const loader = async ({ request }) => {
       missingCoordinates,
       missingPhone,
     },
+    stateDistribution: {
+      topStates,
+      maxStateCount,
+    },
     contactUrl: process.env.CONTACT_URL || "https://storetrail.app/support",
   };
 };
 
 export default function Index() {
-  const { stores, metrics, contactUrl, subscription } = useLoaderData();
+  const { stores, metrics, stateDistribution, contactUrl } = useLoaderData();
   const navigate = useNavigate();
   const shopify = useAppBridge();
-  const [showImport, setShowImport] = useState(false);
+  
+  const [dismissed, setDismissed] = useState({
+    stateDistribution: false,
+    setupGuide: false,
+    dealerSubmission: false,
+  });
+  const [expanded, setExpanded] = useState({
+    setupGuide: true,
+    step1: true,
+    step2: false,
+    step3: false,
+  });
+  const [setupCompleted, setSetupCompleted] = useState({
+    step1: false,
+    step2: false,
+    step3: false,
+  });
+
+  // Load setup completion from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('setup_completed');
+    if (stored) {
+      setSetupCompleted(JSON.parse(stored));
+    }
+  }, []);
+
+  // Load dismissed sections from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('dashboard_dismissed');
+    if (stored) {
+      setDismissed(JSON.parse(stored));
+    }
+  }, []);
+
+  // Save dismissed state to localStorage
+  const handleDismiss = (section) => {
+    const newDismissed = { ...dismissed, [section]: true };
+    setDismissed(newDismissed);
+    localStorage.setItem('dashboard_dismissed', JSON.stringify(newDismissed));
+  };
+
+  // Calculate setup progress based on checked state OR actual completion
+  const setupProgress = () => {
+    let completed = 0;
+    // Step 1: Checked OR has stores
+    if (setupCompleted.step1 || metrics.totalStores > 0) completed++;
+    // Step 2: Checked (manual)
+    if (setupCompleted.step2) completed++;
+    // Step 3: Checked (manual)
+    if (setupCompleted.step3) completed++;
+    return completed;
+  };
+
+  const progress = setupProgress();
+
+  const handleStepComplete = (step) => {
+    const newCompleted = { ...setupCompleted, [step]: !setupCompleted[step] };
+    setSetupCompleted(newCompleted);
+    localStorage.setItem('setup_completed', JSON.stringify(newCompleted));
+  };
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -113,332 +161,470 @@ export default function Index() {
     return date.toLocaleDateString();
   };
 
-  const handleExportStores = () => {
-    // Import the export function and call it
-    import("../helper/exportAction").then(({ exportAllStoresToCSV }) => {
-      exportAllStoresToCSV(stores);
-      shopify.toast.show("Stores exported successfully!");
-    });
-  };
-
-  const handleFixGeocoding = () => {
-    shopify.toast.show("Geocoding fix feature coming soon!");
-    // This would trigger a background job to geocode missing stores
-  };
-
   return (
-    <Page>
-      <TitleBar title="Store Locator Dashboard" />
-      <BlockStack gap="500">
-        {/* Welcome message for new users */}
-        {metrics.totalStores === 0 && (
-          <Card>
-            <EmptyState
-              heading="Welcome to Store Locator! 🎉"
-              action={{
-                content: "Add Your First Store",
-                onAction: () => navigate("/app/add-store"),
-              }}
-              secondaryAction={{
-                content: "Import Multiple Stores",
-                onAction: () => navigate("/app/view-stores"),
-              }}
-              image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-            >
-              <Text variant="bodyMd" as="p">
-                Get started by adding your store locations to help customers
-                find you easily.
-              </Text>
-            </EmptyState>
-          </Card>
+    <s-page heading="Store Locator Dashboard">
+      <ui-title-bar title="Store Locator Dashboard" />
+      
+      {/* Primary and Secondary Actions */}
+      <s-button 
+        slot="primary-action" 
+        onClick={() => navigate("/app/add-store")}
+        icon="plus"
+      >
+        Add New Store
+      </s-button>
+      <s-button 
+        slot="secondary-actions" 
+        onClick={() => navigate("/app/view-stores")}
+      >
+        Manage Stores
+      </s-button>
+      <s-button 
+        slot="secondary-actions" 
+        onClick={() => navigate("/app/choropleth")}
+      >
+        Distribution Map
+      </s-button>
+
+      <s-stack direction="block" gap="large-200" paddingBlockStart="large" paddingBlockEnd="large" paddingInlineStart="base" paddingInlineEnd="base">
+        {/* Setup Guide - Show for new users only, if not dismissed */}
+        {!dismissed.setupGuide && metrics.totalStores === 0 && (
+          <s-section>
+            <s-grid gap="small">
+              <s-grid gap="small-200">
+                <s-grid gridTemplateColumns="1fr auto auto" gap="small-300" alignItems="center">
+                  <s-heading>Setup Guide</s-heading>
+                  <s-button
+                    accessibilityLabel="Dismiss Guide"
+                    onClick={() => handleDismiss('setupGuide')}
+                    variant="tertiary"
+                    tone="neutral"
+                    icon="x"
+                  />
+                  <s-button
+                    accessibilityLabel="Toggle setup guide"
+                    onClick={() => setExpanded({ ...expanded, setupGuide: !expanded.setupGuide })}
+                    variant="tertiary"
+                    tone="neutral"
+                    icon={expanded.setupGuide ? "chevron-up" : "chevron-down"}
+                  />
+                </s-grid>
+                <s-paragraph>
+                  Use this personalized guide to get your store locator ready.
+                </s-paragraph>
+                <s-paragraph color="subdued">
+                  {progress} out of 3 steps completed
+                </s-paragraph>
+              </s-grid>
+              
+              {expanded.setupGuide && (
+                <s-box borderRadius="base" border="base" background="base">
+                  {/* Step 1: Add Your First Store */}
+                  <s-box>
+                    <s-grid gridTemplateColumns="1fr auto" gap="base" padding="small">
+                      <s-checkbox 
+                        label="Add your first store location"
+                        checked={setupCompleted.step1 || metrics.totalStores > 0}
+                        onInput={(e) => handleStepComplete('step1')}
+                      />
+                      <s-button
+                        onClick={() => setExpanded({ ...expanded, step1: !expanded.step1 })}
+                        accessibilityLabel="Toggle step 1 details"
+                        variant="tertiary"
+                        icon={expanded.step1 ? "chevron-up" : "chevron-down"}
+                      />
+                    </s-grid>
+                    {expanded.step1 && (
+                      <s-box padding="small" paddingBlockStart="none">
+                        <s-box padding="base" background="subdued" borderRadius="base">
+                          <s-grid gridTemplateColumns="1fr auto" gap="base" alignItems="center">
+                            <s-grid gap="small-200">
+                              <s-paragraph>
+                                Start by adding your first store location. Include the full address, phone number, and any other relevant details.
+                              </s-paragraph>
+                              <s-stack direction="inline" gap="small-200">
+                                <s-button 
+                                  variant="primary"
+                                  onClick={() => navigate("/app/add-store")}
+                                >
+                                  Add Store
+                                </s-button>
+                                <s-button 
+                                  variant="tertiary" 
+                                  tone="neutral"
+                                  onClick={() => navigate("/app/view-stores")}
+                                >
+                                  Import Multiple
+                                </s-button>
+                              </s-stack>
+                            </s-grid>
+                          </s-grid>
+                        </s-box>
+                      </s-box>
+                    )}
+                  </s-box>
+                  
+                  <s-divider />
+                  
+                  {/* Step 2: Configure Google Maps API Key */}
+                  <s-box>
+                    <s-grid gridTemplateColumns="1fr auto" gap="base" padding="small">
+                      <s-checkbox 
+                        label="Configure Google Maps API key"
+                        checked={setupCompleted.step2}
+                        onInput={(e) => handleStepComplete('step2')}
+                      />
+                      <s-button
+                        onClick={() => setExpanded({ ...expanded, step2: !expanded.step2 })}
+                        accessibilityLabel="Toggle step 2 details"
+                        variant="tertiary"
+                        icon={expanded.step2 ? "chevron-up" : "chevron-down"}
+                      />
+                    </s-grid>
+                    {expanded.step2 && (
+                      <s-box padding="small" paddingBlockStart="none">
+                        <s-box padding="base" background="subdued" borderRadius="base">
+                          <s-grid gap="small-200">
+                            <s-paragraph>
+                              Get a Google Maps API key to enable map functionality on your storefront. You'll need:
+                            </s-paragraph>
+                            <s-stack direction="block" gap="small-100">
+                              <s-text>1. Go to <s-link href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</s-link></s-text>
+                              <s-text>2. Enable "Maps JavaScript API" and "Geocoding API"</s-text>
+                              <s-text>3. Create an API key</s-text>
+                              <s-text>4. Add the key to your theme's Store Locator block settings</s-text>
+                            </s-stack>
+                            <s-button 
+                              variant="secondary"
+                              onClick={() => window.open("https://console.cloud.google.com/apis/credentials", "_blank")}
+                            >
+                              Get API Key
+                            </s-button>
+                          </s-grid>
+                        </s-box>
+                      </s-box>
+                    )}
+                  </s-box>
+                  
+                  <s-divider />
+                  
+                  {/* Step 3: Enable Theme Extension */}
+                  <s-box>
+                    <s-grid gridTemplateColumns="1fr auto" gap="base" padding="small">
+                      <s-checkbox 
+                        label="Add store locator to your theme"
+                        checked={setupCompleted.step3}
+                        onInput={(e) => handleStepComplete('step3')}
+                      />
+                      <s-button
+                        onClick={() => setExpanded({ ...expanded, step3: !expanded.step3 })}
+                        accessibilityLabel="Toggle step 3 details"
+                        variant="tertiary"
+                        icon={expanded.step3 ? "chevron-up" : "chevron-down"}
+                      />
+                    </s-grid>
+                    {expanded.step3 && (
+                      <s-box padding="small" paddingBlockStart="none">
+                        <s-box padding="base" background="subdued" borderRadius="base">
+                          <s-grid gap="small-200">
+                            <s-paragraph>
+                              Add the Store Locator block to your theme so customers can find your stores.
+                            </s-paragraph>
+                            <s-stack direction="block" gap="small-100">
+                              <s-text>1. Go to Online Store → Themes → Customize</s-text>
+                              <s-text>2. Add the "Store Locator" block to any page</s-text>
+                              <s-text>3. Configure your Google Maps API key in block settings</s-text>
+                            </s-stack>
+                          </s-grid>
+                        </s-box>
+                      </s-box>
+                    )}
+                  </s-box>
+                </s-box>
+              )}
+            </s-grid>
+          </s-section>
+        )}
+
+        {/* Welcome message for new users (fallback if setup guide dismissed) */}
+        {metrics.totalStores === 0 && dismissed.setupGuide && (
+          <s-section>
+            <s-stack direction="block" gap="large" alignItems="center" textAlign="center">
+              <s-image
+                src="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                alt="Welcome to Store Locator"
+                width="120px"
+              />
+              <s-heading>Welcome to Store Locator! 🎉</s-heading>
+              <s-paragraph>
+                Get started by adding your store locations to help customers find you easily.
+              </s-paragraph>
+              <s-stack direction="inline" gap="base">
+                <s-button 
+                  variant="primary"
+                  onClick={() => navigate("/app/add-store")}
+                >
+                  Add Your First Store
+                </s-button>
+                <s-button onClick={() => navigate("/app/view-stores")}>
+                  Import Multiple Stores
+                </s-button>
+              </s-stack>
+            </s-stack>
+          </s-section>
         )}
 
         {/* Dashboard metrics - only show if there are stores */}
         {metrics.totalStores > 0 && (
           <>
             {/* Hero Dashboard Cards */}
-            <Layout>
-              <Layout.Section>
-                <InlineStack gap="400">
-                  <Card>
-                    <BlockStack gap="200">
-                      <InlineStack align="space-between">
-                        <Text variant="headingMd" as="h2">
-                          Total Stores
-                        </Text>
-                        <Icon source={LocationIcon} color="base" />
-                      </InlineStack>
-                      <Text variant="heading2xl" as="p" color="success">
+            <s-grid gridTemplateColumns="repeat(auto-fit, minmax(240px, 1fr))" gap="base">
+              {/* Total Stores Card */}
+              <s-box background="base" border="base" borderRadius="base" padding="base">
+                <s-stack direction="block" gap="small-200">
+                  <s-stack direction="inline" alignItems="center" justifyContent="space-between">
+                    <s-heading>Total Stores</s-heading>
+                    <s-icon name="location" />
+                  </s-stack>
+                  <s-text variant="heading2xl" tone="success">
                         {metrics.totalStores}
-                      </Text>
-                      <Text variant="bodyMd" color="subdued">
+                  </s-text>
+                  <s-text color="subdued">
                         {metrics.recentStoresCount > 0
                           ? `+${metrics.recentStoresCount} added this week`
                           : "No new stores this week"}
-                      </Text>
-                    </BlockStack>
-                  </Card>
+                  </s-text>
+                </s-stack>
+              </s-box>
 
-                  <Card>
-                    <BlockStack gap="200">
-                      <InlineStack align="space-between">
-                        <Text variant="headingMd" as="h2">
-                          Store Coverage
-                        </Text>
-                        <Badge tone="info">{metrics.uniqueStatesCount}</Badge>
-                      </InlineStack>
-                      <Text variant="heading2xl" as="p">
+              {/* Store Coverage Card */}
+              <s-box background="base" border="base" borderRadius="base" padding="base">
+                <s-stack direction="block" gap="small-200">
+                  <s-stack direction="inline" alignItems="center" justifyContent="space-between">
+                    <s-heading>Store Coverage</s-heading>
+                    <s-badge tone="info">{metrics.uniqueStatesCount}</s-badge>
+                  </s-stack>
+                  <s-text variant="heading2xl">
                         {metrics.uniqueStatesCount}
-                      </Text>
-                      <Text variant="bodyMd" color="subdued">
-                        {metrics.uniqueStatesCount === 1
-                          ? "state covered"
-                          : "states covered"}
-                      </Text>
-                    </BlockStack>
-                  </Card>
+                  </s-text>
+                  <s-text color="subdued">
+                    {metrics.uniqueStatesCount === 1 ? "state covered" : "states covered"}
+                  </s-text>
+                </s-stack>
+              </s-box>
 
-                  <Card>
-                    <BlockStack gap="200">
-                      <InlineStack align="space-between">
-                        <Text variant="headingMd" as="h2">
-                          Geocoded
-                        </Text>
-                        <Badge
-                          tone={
-                            metrics.geocodedPercent === 100
-                              ? "success"
-                              : "warning"
-                          }
-                        >
+              {/* Geocoded Card */}
+              <s-box background="base" border="base" borderRadius="base" padding="base">
+                <s-stack direction="block" gap="small-200">
+                  <s-stack direction="inline" alignItems="center" justifyContent="space-between">
+                    <s-heading>Geocoded</s-heading>
+                    <s-badge tone={metrics.geocodedPercent === 100 ? "success" : "warning"}>
                           {metrics.geocodedPercent}%
-                        </Badge>
-                      </InlineStack>
-                      <Text variant="heading2xl" as="p">
+                    </s-badge>
+                  </s-stack>
+                  <s-text variant="heading2xl">
                         {metrics.geocodedPercent}%
-                      </Text>
-                      <Text variant="bodyMd" color="subdued">
-                        stores have coordinates
-                      </Text>
+                  </s-text>
+                  <s-text color="subdued">stores have coordinates</s-text>
                       {metrics.geocodedPercent < 100 && (
-                        <ProgressBar
-                          progress={metrics.geocodedPercent}
-                          size="small"
-                        />
-                      )}
-                    </BlockStack>
-                  </Card>
-                </InlineStack>
-              </Layout.Section>
-            </Layout>
-
-            {/* Quick Actions */}
-            <Card>
-              <BlockStack gap="400">
-                <Text variant="headingMd" as="h2">
-                  Quick Actions
-                </Text>
-                <InlineStack gap="200">
-                  <Button
-                    primary
-                    icon={PlusIcon}
-                    onClick={() => navigate("/app/add-store")}
+                    <s-box 
+                      background="subdued" 
+                      borderRadius="base" 
+                      overflow="hidden"
+                      style={{ height: "8px", width: "100%" }}
+                    >
+                      <s-box 
+                        background="success" 
+                        style={{ 
+                          height: "100%", 
+                          width: `${metrics.geocodedPercent}%`,
+                          transition: "width 0.3s"
+                        }}
+                      />
+                    </s-box>
+                  )}
+                </s-stack>
+              </s-box>
+            </s-grid>
+            
+            {/* Dealer Submission Form Section */}
+            {!dismissed.dealerSubmission && metrics.totalStores > 0 && (
+              <s-section>
+                <s-box padding="base" background="base" border="base" borderRadius="base">
+                  <s-grid
+                    gridTemplateColumns="1fr auto"
+                    gap="small-400"
+                    alignItems="start"
                   >
-                    Add New Store
-                  </Button>
-                  <Button
-                    icon={ListBulletedIcon}
-                    onClick={() => navigate("/app/view-stores")}
-                  >
-                    Manage Stores
-                  </Button>
-                  <FeatureButton
-                    feature="choropleth"
-                    subscription={subscription}
-                    icon="🗺️"
-                    onClick={() => navigate("/app/choropleth")}
-                  >
-                    Store Distribution Map
-                  </FeatureButton>
-                  <FeatureButton
-                    feature="csv_import"
-                    subscription={subscription}
-                    icon={ImportIcon}
-                    onClick={() => navigate("/app/view-stores")}
-                  >
-                    Import CSV
-                  </FeatureButton>
-                  <FeatureButton
-                    feature="csv_export"
-                    subscription={subscription}
-                    icon={ExportIcon}
-                    onClick={handleExportStores}
-                  >
-                    Export Data
-                  </FeatureButton>
-                  <FeatureButton
-                    feature="dealer_submission_form"
-                    subscription={subscription}
-                    onClick={() => navigate("/app/dealer-submission")}
-                  >
-                    Dealer Submission
-                  </FeatureButton>
-                  <FeatureButton
-                    feature="dealer_submission_form"
-                    subscription={subscription}
-                    onClick={() => navigate("/app/submissions")}
-                  >
-                    Manage Submissions
-                  </FeatureButton>
-                  <Button
-                    icon="💬"
-                    onClick={() => navigate("/app/support")}
-                    aria-label="Contact Support"
-                  >
-                    Contact Support
-                  </Button>
-                </InlineStack>
-              </BlockStack>
-            </Card>
-
-            {/* Store Health Check */}
-            {(metrics.missingCoordinates > 0 || metrics.missingPhone > 0) && (
-              <Card>
-                <BlockStack gap="400">
-                  <Text variant="headingMd" as="h2">
-                    Store Health
-                  </Text>
-                  <List>
-                    {metrics.missingCoordinates > 0 && (
-                      <List.Item>
-                        <InlineStack gap="200" align="space-between">
-                          <InlineStack gap="200">
-                            <Icon source={AlertCircleIcon} color="warning" />
-                            <Text>
-                              {metrics.missingCoordinates} stores need geocoding
-                            </Text>
-                          </InlineStack>
-                          <Button size="micro" onClick={handleFixGeocoding}>
-                            Fix Now
-                          </Button>
-                        </InlineStack>
-                      </List.Item>
-                    )}
-                    {metrics.missingPhone > 0 && (
-                      <List.Item>
-                        <InlineStack gap="200" align="space-between">
-                          <InlineStack gap="200">
-                            <Icon source={PhoneIcon} color="base" />
-                            <Text>
-                              {metrics.missingPhone} stores missing phone
-                              numbers
-                            </Text>
-                          </InlineStack>
-                          <Button
-                            size="micro"
-                            onClick={() => navigate("/app/view-stores")}
-                          >
-                            Review
-                          </Button>
-                        </InlineStack>
-                      </List.Item>
-                    )}
-                  </List>
-                </BlockStack>
-              </Card>
+                    <s-grid
+                      gridTemplateColumns="@container (inline-size <= 480px) 1fr, auto auto"
+                      gap="base"
+                      alignItems="center"
+                    >
+                      <s-grid gap="small-200">
+                        <s-heading>Ready to accept dealer submissions?</s-heading>
+                        <s-paragraph>
+                          Allow dealers and partners to submit their store locations directly through your storefront. Submissions will appear in your dashboard for review and approval.
+                        </s-paragraph>
+                        <s-stack direction="inline" gap="small-200">
+                          <s-button onClick={() => navigate("/app/submissions")}>
+                            View Submissions
+                          </s-button>
+                        </s-stack>
+                      </s-grid>
+                      <s-stack alignItems="center">
+                        <s-box maxInlineSize="200px" borderRadius="base" overflow="hidden">
+                          <s-image
+                            src="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                            alt="Dealer submission form illustration"
+                            aspectRatio="1/0.5"
+                          />
+                        </s-box>
+                      </s-stack>
+                    </s-grid>
+                    <s-button
+                      onClick={() => handleDismiss('dealerSubmission')}
+                      icon="x"
+                      tone="neutral"
+                      variant="tertiary"
+                      accessibilityLabel="Dismiss dealer submission form section"
+                    />
+                  </s-grid>
+                </s-box>
+              </s-section>
             )}
 
-            {/* Recent Activity */}
-            <Layout>
-              <Layout.Section>
-                <Card>
-                  <BlockStack gap="400">
-                    <InlineStack align="space-between">
-                      <Text variant="headingMd" as="h2">
-                        Recent Activity
-                      </Text>
-                      <Link url="/app/view-stores">View all stores</Link>
-                    </InlineStack>
-                    {stores.length > 0 ? (
-                      <List>
-                        {stores.slice(0, 5).map((store, idx) => (
-                          <List.Item
-                            key={store.id}
-                            className={styles.recentActivityStoreItem}
+            {/* Top States Distribution Chart */}
+            {metrics.totalStores > 0 && stateDistribution.topStates.length > 0 && (
+              <s-section>
+                <s-heading>Store Distribution by State</s-heading>
+                <s-stack direction="block" gap="small-200">
+                  {stateDistribution.topStates.map((state, idx) => {
+                    const barWidth = stateDistribution.maxStateCount > 0 
+                      ? (state.count / stateDistribution.maxStateCount) * 100 
+                      : 0;
+                    return (
+                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <div style={{ width: "35px", fontWeight: "500", flexShrink: 0 }}>
+                          <s-text>{state.stateCode}</s-text>
+                        </div>
+                        <div
+                          style={{
+                            flex: 1,
+                            height: "24px",
+                            backgroundColor: "#f6f6f7",
+                            borderRadius: "4px",
+                            display: "flex",
+                            alignItems: "center",
+                            position: "relative",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: `${barWidth}%`,
+                              height: "100%",
+                              backgroundColor: "#008060",
+                              borderRadius: "4px",
+                              transition: "width 0.3s",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "flex-end",
+                              paddingRight: "6px",
+                              minWidth: state.count > 0 ? "35px" : "0",
+                            }}
                           >
-                            <InlineStack gap="200" align="space-between">
-                              <BlockStack gap="100">
-                                <Text variant="bodyMd" fontWeight="medium">
-                                  {store.name}
-                                </Text>
-                                <Text variant="bodyMd" color="subdued">
+                            <span style={{ color: "white", fontSize: "11px", fontWeight: "600" }}>
+                              {state.count}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </s-stack>
+              </s-section>
+            )}
+
+            {/* Recent Activity and Store Overview */}
+            <s-grid gridTemplateColumns="2fr 1fr" gap="base">
+            {/* Recent Activity */}
+              <s-section>
+                <s-grid gridTemplateColumns="1fr auto" alignItems="center" paddingBlockEnd="small-400">
+                  <s-heading>Recent Activity</s-heading>
+                  <s-link href="/app/view-stores">View all stores</s-link>
+                </s-grid>
+                    {stores.length > 0 ? (
+                  <s-stack direction="block" gap="small-300">
+                    {stores.slice(0, 5).map((store) => (
+                      <s-box 
+                            key={store.id}
+                        padding="small-300" 
+                        borderRadius="base"
+                        style={{ 
+                          borderBottom: "1px solid var(--p-color-border-subdued)"
+                        }}
+                      >
+                        <s-grid gridTemplateColumns="1fr auto" gap="small-500" alignItems="start">
+                          <s-stack direction="block" gap="small-500">
+                            <s-text fontWeight="medium">{store.name}</s-text>
+                            <s-text color="subdued">
                                   {store.address}, {store.city}, {store.state}
-                                </Text>
-                              </BlockStack>
-                              <Text variant="bodyMd" color="subdued">
+                            </s-text>
+                          </s-stack>
+                          <s-text color="subdued">
                                 {formatDate(store.createdAt)}
-                              </Text>
-                            </InlineStack>
-                          </List.Item>
-                        ))}
-                      </List>
-                    ) : (
-                      <Text variant="bodyMd" color="subdued">
-                        No recent activity
-                      </Text>
-                    )}
-                  </BlockStack>
-                </Card>
-              </Layout.Section>
+                          </s-text>
+                        </s-grid>
+                      </s-box>
+                    ))}
+                  </s-stack>
+                ) : (
+                  <s-paragraph color="subdued">No recent activity</s-paragraph>
+                )}
+              </s-section>
 
               {/* Store Overview Sidebar */}
-              <Layout.Section variant="oneThird">
-                <Card>
-                  <BlockStack gap="400">
-                    <Text variant="headingMd" as="h2">
-                      Store Overview
-                    </Text>
-                    <Box
-                      padding="400"
-                      background="bg-surface-secondary"
-                      borderRadius="200"
-                      borderWidth="025"
-                      borderColor="border"
-                    >
-                      <BlockStack gap="200">
-                        <InlineStack align="space-between">
-                          <Text variant="bodyMd">Total Stores</Text>
-                          <Badge tone="info">{metrics.totalStores}</Badge>
-                        </InlineStack>
-                        <InlineStack align="space-between">
-                          <Text variant="bodyMd">With Phone</Text>
-                          <Badge tone="info">{metrics.storesWithPhone}</Badge>
-                        </InlineStack>
-                        <InlineStack align="space-between">
-                          <Text variant="bodyMd">With Website</Text>
-                          <Badge tone="info">{metrics.storesWithLink}</Badge>
-                        </InlineStack>
-                        <InlineStack align="space-between">
-                          <Text variant="bodyMd">States Covered</Text>
-                          <Badge tone="success">
-                            {metrics.uniqueStatesCount}
-                          </Badge>
-                        </InlineStack>
-                      </BlockStack>
-                    </Box>
-                    <Button
-                      fullWidth
+              <s-section>
+                <s-stack direction="block" gap="base">
+                  <s-heading>Store Overview</s-heading>
+                  <s-box 
+                    padding="base" 
+                    background="subdued" 
+                    borderRadius="base"
+                    border="base"
+                  >
+                    <s-stack direction="block" gap="small-200">
+                      <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+                        <s-text>Total Stores</s-text>
+                        <s-badge tone="info">{metrics.totalStores}</s-badge>
+                      </s-stack>
+                      <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+                        <s-text>With Phone</s-text>
+                        <s-badge tone="info">{metrics.storesWithPhone}</s-badge>
+                      </s-stack>
+                      <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+                        <s-text>With Website</s-text>
+                        <s-badge tone="info">{metrics.storesWithLink}</s-badge>
+                      </s-stack>
+                      <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+                        <s-text>States Covered</s-text>
+                        <s-badge tone="success">{metrics.uniqueStatesCount}</s-badge>
+                      </s-stack>
+                    </s-stack>
+                  </s-box>
+                  <s-button 
+                    inlineSize="fill-available"
                       onClick={() => navigate("/app/view-stores")}
                     >
                       View All Stores
-                    </Button>
-                  </BlockStack>
-                </Card>
-              </Layout.Section>
-            </Layout>
+                  </s-button>
+                </s-stack>
+              </s-section>
+            </s-grid>
           </>
         )}
-      </BlockStack>
-    </Page>
+      </s-stack>
+    </s-page>
   );
 }
