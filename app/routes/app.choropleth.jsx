@@ -255,67 +255,73 @@ export default function ChoroplethPage() {
         <Layout>
         <Layout.Section>
           {/* Analytics Cards */}
-          <InlineStack gap="400" align="stretch" wrap>
-            <Card>
-              <BlockStack gap="200">
-                <Text variant="headingMd" as="h3">
-                  Total Stores
-                </Text>
-                <Text variant="heading2xl" as="p">
-                  {stores.length}
-                </Text>
-                <Text variant="bodyMd" color="subdued">
-                  All store locations
-                </Text>
-              </BlockStack>
-            </Card>
+          <s-query-container>
+            <s-grid gridTemplateColumns="@container (inline-size <= 480px) 1fr, 'repeat(4, 1fr)'" gap="base">
+              {/* Total Stores Card */}
+              <s-box background="base" border="base" borderRadius="base" padding="base">
+                <s-stack direction="block" gap="small-200">
+                  <s-stack direction="inline" alignItems="center" justifyContent="space-between">
+                    <s-heading>Total Stores</s-heading>
+                  </s-stack>
+                  <s-text variant="heading2xl">
+                    {stores.length}
+                  </s-text>
+                  <s-text color="subdued">
+                    All store locations
+                  </s-text>
+                </s-stack>
+              </s-box>
 
-            <Card>
-              <BlockStack gap="200">
-                <Text variant="headingMd" as="h3">
-                  On Map
-                </Text>
-                <Text variant="heading2xl" as="p" color="success">
-                  {storesWithCoordinates.length}
-                </Text>
-                <Text variant="bodyMd" color="subdued">
-                  {stores.length > 0
-                    ? `${Math.round((storesWithCoordinates.length / stores.length) * 100)}% geocoded`
-                    : "0% geocoded"}
-                </Text>
-              </BlockStack>
-            </Card>
+              {/* On Map Card */}
+              <s-box background="base" border="base" borderRadius="base" padding="base">
+                <s-stack direction="block" gap="small-200">
+                  <s-stack direction="inline" alignItems="center" justifyContent="space-between">
+                    <s-heading>On Map</s-heading>
+                  </s-stack>
+                  <s-text variant="heading2xl" tone="success">
+                    {storesWithCoordinates.length}
+                  </s-text>
+                  <s-text color="subdued">
+                    {stores.length > 0
+                      ? `${Math.round((storesWithCoordinates.length / stores.length) * 100)}% geocoded`
+                      : "0% geocoded"}
+                  </s-text>
+                </s-stack>
+              </s-box>
 
-            <Card>
-              <BlockStack gap="200">
-                <Text variant="headingMd" as="h3">
-                  States Covered
-                </Text>
-                <Text variant="heading2xl" as="p">
-                  {stateStats.length}
-                </Text>
-                <Text variant="bodyMd" color="subdued">
-                  {stateStats.length === 1 ? "state" : "states"} with stores
-                </Text>
-              </BlockStack>
-            </Card>
+              {/* States Covered Card */}
+              <s-box background="base" border="base" borderRadius="base" padding="base">
+                <s-stack direction="block" gap="small-200">
+                  <s-stack direction="inline" alignItems="center" justifyContent="space-between">
+                    <s-heading>States Covered</s-heading>
+                  </s-stack>
+                  <s-text variant="heading2xl">
+                    {stateStats.length}
+                  </s-text>
+                  <s-text color="subdued">
+                    {stateStats.length === 1 ? "state" : "states"} with stores
+                  </s-text>
+                </s-stack>
+              </s-box>
 
-            <Card>
-              <BlockStack gap="200">
-                <Text variant="headingMd" as="h3">
-                  Avg per State
-                </Text>
-                <Text variant="heading2xl" as="p">
-                  {stateStats.length > 0
-                    ? Math.round((stores.length / stateStats.length) * 10) / 10
-                    : 0}
-                </Text>
-                <Text variant="bodyMd" color="subdued">
-                  Average stores per state
-                </Text>
-              </BlockStack>
-            </Card>
-          </InlineStack>
+              {/* Avg per State Card */}
+              <s-box background="base" border="base" borderRadius="base" padding="base">
+                <s-stack direction="block" gap="small-200">
+                  <s-stack direction="inline" alignItems="center" justifyContent="space-between">
+                    <s-heading>Avg per State</s-heading>
+                  </s-stack>
+                  <s-text variant="heading2xl">
+                    {stateStats.length > 0
+                      ? Math.round((stores.length / stateStats.length) * 10) / 10
+                      : 0}
+                  </s-text>
+                  <s-text color="subdued">
+                    Average stores per state
+                  </s-text>
+                </s-stack>
+              </s-box>
+            </s-grid>
+          </s-query-container>
 
           <Box paddingBlockStart="400">
             <Card>
