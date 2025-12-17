@@ -16,12 +16,13 @@ import {
   Pagination,
   Link,
 } from "@shopify/polaris";
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   useLoaderData,
   useSubmit,
   useActionData,
   useNavigate,
+  useLocation,
 } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
 import {
@@ -47,23 +48,47 @@ export const loader = async ({ request }) => {
   const { appSubscriptions } = await billing.check();
   const subscription = appSubscriptions?.[0];
 
-  // Parse URL parameters for pagination
+  // Parse URL parameters for pagination and search
   const url = new URL(request.url);
   const page = parseInt(url.searchParams.get("page") || "1");
+  const query = url.searchParams.get("query") || "";
   const limit = 50; // Stores per page
   const skip = (page - 1) * limit;
 
-  // Build base where clause
-  const whereClause = {
+  // Build where clause with shop filter and optional search
+  let whereClause = {
     shop: session.shop, // GDPR compliance
   };
 
-  // Get total count for pagination info
+  // Add search conditions if query is provided
+  if (query) {
+    const searchTerm = query.trim();
+    if (searchTerm) {
+      // Combine shop filter with search using AND
+      whereClause = {
+        AND: [
+          { shop: session.shop },
+          {
+            OR: [
+              { name: { contains: searchTerm, mode: "insensitive" } },
+              { address: { contains: searchTerm, mode: "insensitive" } },
+              { city: { contains: searchTerm, mode: "insensitive" } },
+              { state: { contains: searchTerm, mode: "insensitive" } },
+              { country: { contains: searchTerm, mode: "insensitive" } },
+              { phone: { contains: searchTerm, mode: "insensitive" } },
+            ],
+          },
+        ],
+      };
+    }
+  }
+
+  // Get total count for pagination info (with search applied)
   const totalCount = await prisma.store.count({
     where: whereClause,
   });
 
-  // Get paginated stores
+  // Get paginated stores (with search applied)
   const stores = await prisma.store.findMany({
     where: whereClause,
     skip,
@@ -131,6 +156,7 @@ export default function IndexTableWithViewsSearchFilterSorting() {
   const submit = useSubmit();
   const actionData = useActionData();
   const navigate = useNavigate();
+  const location = useLocation();
   const shopify = useAppBridge();
 
   const [accountStatus, setAccountStatus] = useState(undefined);
@@ -141,9 +167,17 @@ export default function IndexTableWithViewsSearchFilterSorting() {
   const [queryValue, setQueryValue] = useState("");
   const [stateFilter, setStateFilter] = useState([]);
   const [navigatingToMap, setNavigatingToMap] = useState(false);
+  const searchTimeoutRef = useRef(null);
 
   // Add back client-side filtering for Phase 1
   const [filteredStores, setFilteredStores] = useState(stores);
+
+  // Sync queryValue from URL params (on mount and when location changes)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const urlQuery = params.get("query") || "";
+    setQueryValue(urlQuery);
+  }, [location.search]); // Sync when URL search params change
 
   // 1. Mount check
   useEffect(() => {
@@ -163,19 +197,8 @@ export default function IndexTableWithViewsSearchFilterSorting() {
   useEffect(() => {
     let filtered = stores;
 
-    // Filter by query (search)
-    if (queryValue) {
-      const query = queryValue.toLowerCase();
-      filtered = filtered.filter(
-        (store) =>
-          store.name?.toLowerCase().includes(query) ||
-          store.address?.toLowerCase().includes(query) ||
-          store.city?.toLowerCase().includes(query) ||
-          store.state?.toLowerCase().includes(query) ||
-          store.country?.toLowerCase().includes(query) ||
-          store.phone?.toLowerCase().includes(query),
-      );
-    }
+    // Note: Query (search) filtering is now handled server-side in the loader
+    // No need to filter by queryValue here anymore
 
     // Filter by account status
     if (accountStatus && accountStatus.length > 0) {
@@ -255,7 +278,6 @@ export default function IndexTableWithViewsSearchFilterSorting() {
     setFilteredStores(filtered);
   }, [
     stores,
-    queryValue,
     accountStatus,
     hasCoordinates,
     hasPhone,
@@ -352,7 +374,10 @@ export default function IndexTableWithViewsSearchFilterSorting() {
   ];
   const [sortSelected, setSortSelected] = useState(["order asc"]);
   const { mode, setMode } = useSetIndexFiltersMode();
-  const onHandleCancel = () => {};
+  const onHandleCancel = () => {
+    // Clear the search query when cancel is clicked
+    handleQueryValueRemove();
+  };
 
   const onHandleSave = async () => {
     await sleep(1);
@@ -436,8 +461,25 @@ export default function IndexTableWithViewsSearchFilterSorting() {
     [],
   );
   const handleFiltersQueryChange = useCallback(
-    (value) => setQueryValue(value),
-    [],
+    (value) => {
+      setQueryValue(value);
+      // Clear existing timeout
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+      // Debounce navigation to avoid too many requests while typing
+      searchTimeoutRef.current = setTimeout(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (value.trim()) {
+          params.set("query", value);
+        } else {
+          params.delete("query");
+        }
+        params.set("page", "1"); // Reset to first page when searching
+        navigate(`/app/view-stores?${params.toString()}`);
+      }, 200); // 200ms debounce
+    },
+    [navigate],
   );
   const handleAccountStatusRemove = useCallback(
     () => setAccountStatus(undefined),
@@ -451,7 +493,18 @@ export default function IndexTableWithViewsSearchFilterSorting() {
   const handleHasLinkRemove = useCallback(() => setHasLink(undefined), []);
   const handleTaggedWithRemove = useCallback(() => setTaggedWith(""), []);
   const handleStateFilterRemove = useCallback(() => setStateFilter([]), []);
-  const handleQueryValueRemove = useCallback(() => setQueryValue(""), []);
+  const handleQueryValueRemove = useCallback(() => {
+    // Clear any pending debounced navigation
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = null;
+    }
+    setQueryValue("");
+    const params = new URLSearchParams(window.location.search);
+    params.delete("query");
+    params.set("page", "1"); // Reset to first page when clearing search
+    navigate(`/app/view-stores?${params.toString()}`);
+  }, [navigate]);
   const handleFiltersClearAll = useCallback(() => {
     handleAccountStatusRemove();
     handleHasCoordinatesRemove();
@@ -752,7 +805,7 @@ export default function IndexTableWithViewsSearchFilterSorting() {
           queryValue={queryValue}
           queryPlaceholder="Searching in all"
           onQueryChange={handleFiltersQueryChange}
-          onQueryClear={() => setQueryValue("")}
+          onQueryClear={handleQueryValueRemove}
           onSort={setSortSelected}
           primaryAction={primaryAction}
           cancelAction={{
@@ -800,12 +853,14 @@ export default function IndexTableWithViewsSearchFilterSorting() {
               const params = new URLSearchParams(window.location.search);
               const currentPage = parseInt(params.get("page") || "1");
               params.set("page", (currentPage - 1).toString());
+              // Preserve query parameter if it exists
               navigate(`/app/view-stores?${params.toString()}`);
             }}
             onNext={() => {
               const params = new URLSearchParams(window.location.search);
               const currentPage = parseInt(params.get("page") || "1");
               params.set("page", (currentPage + 1).toString());
+              // Preserve query parameter if it exists
               navigate(`/app/view-stores?${params.toString()}`);
             }}
             type="page"
