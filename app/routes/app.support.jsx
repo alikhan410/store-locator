@@ -1,47 +1,16 @@
-import { json } from "@remix-run/node";
-import { useLoaderData, useNavigate, useSubmit, useActionData } from "@remix-run/react";
-import {
-  Page,
-  Layout,
-  Card,
-  Text,
-  BlockStack,
-  InlineStack,
-  InlineGrid,
-  Button,
-  Banner,
-  List,
-  Badge,
-  Icon,
-  TextField,
-  Select,
-  CalloutCard,
-} from "@shopify/polaris";
-import {
-  EmailIcon,
-  PhoneIcon,
-  ChatIcon,
-  ClockIcon,
-  AlertCircleIcon,
-  CheckCircleIcon,
-  InfoIcon,
-} from "@shopify/polaris-icons";
+import { useLoaderData, useNavigate, Form, useActionData } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
-import { useFeatureGate } from "../helper/featureGating";
-import { FeatureButton } from "../components/UpgradePrompt";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export const loader = async ({ request }) => {
-  const { session, billing } = await authenticate.admin(request);
-
-  // Get subscription information
-  const { appSubscriptions } = await billing.check();
-  const subscription = appSubscriptions?.[0];
+  const { session } = await authenticate.admin(request);
+  
+  const contactEmail = process.env.SUPPORT_EMAIL || "help@storetrail.com";
+  const contactUrl = process.env.CONTACT_URL || "https://storetrail.app/support";
 
   return {
-    subscription,
-    contactEmail: process.env.SUPPORT_EMAIL || "support@storetrail.app",
-    contactUrl: process.env.CONTACT_URL || "https://storetrail.app/support",
+    contactEmail,
+    contactUrl,
     shop: session.shop,
   };
 };
@@ -52,108 +21,45 @@ export const action = async ({ request }) => {
   const action = formData.get("action");
 
   if (action === "support_request") {
-    const subject = formData.get("subject");
-    const issueType = formData.get("issueType");
-    const description = formData.get("description");
+    // Import server-side only - this prevents client-side bundling
+    const { sendSupportRequestEmail } = await import("../helper/emailManager");
+    
+    const subject = formData.get("subject")?.trim();
+    const issueType = formData.get("issueType")?.trim();
+    const description = formData.get("description")?.trim();
+
+    // Validate required fields
+    if (!subject || !issueType || !description) {
+      return { 
+        success: false, 
+        error: "Please fill in all required fields (Subject, Issue Type, and Description)" 
+      };
+    }
 
     try {
-      // Send Klaviyo event - your flow handles the email forwarding
-      await sendKlaviyoSupportEvent({
+      // Send email via Email Manager
+      await sendSupportRequestEmail({
         subject,
         issueType,
         description,
         shop: session.shop,
-        subscription: session.subscription,
       });
 
+      console.log('[Support Page] Support request email sent successfully for shop:', session.shop);
       return { success: true, message: "Support request submitted successfully!" };
     } catch (error) {
-      console.error("Failed to send Klaviyo support event:", error);
+      console.error('[Support Page] Failed to send support request email:', error.message, 'Shop:', session.shop);
       return { success: false, error: "Failed to submit support request" };
     }
   }
 
+  console.warn('[Support Page] Unknown action type:', action);
   return { success: false };
 };
 
-async function sendKlaviyoSupportEvent(supportData) {
-  const klaviyoApiKey = process.env.KLAVIYO_PRIVATE_API_KEY;
-
-  if (!klaviyoApiKey) {
-    console.log("Klaviyo credentials not configured");
-    return;
-  }
-
-  const eventData = {
-    data: {
-      type: "event",
-      attributes: {
-        properties: {
-          "Subject": supportData.subject,
-          "Issue Type": supportData.issueType,
-          "Description": supportData.description,
-          "Shop": supportData.shop,
-          "Support Level": supportData.subscription?.name || "Free",
-          "Plan Status": supportData.subscription?.status || "No Subscription",
-          "Plan Price": supportData.subscription?.lineItems?.[0]?.plan?.pricingDetails?.price?.amount || "0",
-          "Plan Currency": supportData.subscription?.lineItems?.[0]?.plan?.pricingDetails?.price?.currencyCode || "USD",
-          "Plan Billing Cycle": supportData.subscription?.lineItems?.[0]?.plan?.pricingDetails?.billingCycle || "N/A",
-          "Subscription ID": supportData.subscription?.id || "N/A",
-          "Event Type": "Support Request",
-        },
-        metric: {
-          data: {
-            type: "metric",
-            attributes: {
-              name: "Support Request Submitted",
-              service: "store_locator",
-            },
-          },
-        },
-        profile: {
-          data: {
-            type: "profile",
-            attributes: {
-              email: `${supportData.shop}@storetrail.app`, // Use shop as identifier
-              organization: supportData.shop,
-              title: "Store Owner",
-              location: {
-                address1: supportData.shop,
-                country: "United States",
-              },
-            },
-          },
-        },
-        time: new Date().toISOString(),
-        value: 1,
-        value_currency: "USD",
-        unique_id: `support_request_${supportData.shop}_${Date.now()}`,
-      },
-    },
-  };
-
-  const response = await fetch("https://a.klaviyo.com/api/events", {
-    method: "POST",
-    headers: {
-      accept: "application/vnd.api+json",
-      revision: "2025-07-15",
-      "content-type": "application/vnd.api+json",
-      Authorization: `Klaviyo-API-Key ${klaviyoApiKey}`,
-    },
-    body: JSON.stringify(eventData),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Klaviyo API error: ${response.status} ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
 export default function SupportPage() {
-  const { subscription, contactEmail, contactUrl, shop } = useLoaderData();
+  const { contactEmail, contactUrl, shop } = useLoaderData();
   const navigate = useNavigate();
-  const submit = useSubmit();
   const actionData = useActionData();
 
   const [formData, setFormData] = useState({
@@ -162,297 +68,251 @@ export default function SupportPage() {
     description: "",
   });
 
-  // Determine support level based on plan
-  const getSupportLevel = () => {
-    const defaultFreeSupport = {
-      level: "free",
-      name: "Email Support",
-      description: "Standard email support with 24–48 hour response time",
-      features: [
-        "Email support only",
-        "24–48 hour response time",
-        "Basic troubleshooting",
-        "Documentation access",
-      ],
-      icon: EmailIcon,
-      color: "base",
-    };
-
-    if (!subscription || subscription.status !== "ACTIVE") {
-      return defaultFreeSupport;
-    }
-
-    const planName = subscription.name?.toLowerCase();
-
-    if (planName === "startup" || planName === "basic") {
-      return {
-        level: "basic",
-        name: "Priority Email Support",
-        description: "Enhanced email support with faster response times",
-        features: [
-          "Priority email support",
-          "12–24 hour response time",
-          "Advanced troubleshooting",
-          "Setup assistance",
-          "Documentation access",
-        ],
-        icon: EmailIcon,
-        color: "success",
-      };
-    }
-
-    if (planName === "pro") {
-      return {
-        level: "pro",
-        name: "Premium Support",
-        description: "Comprehensive support with multiple channels",
-        features: [
-          "Priority email support",
-          "Live chat during business hours",
-          "Phone support option",
-          "4–8 hour response time",
-          "Dedicated account assistance",
-          "Setup and onboarding support",
-        ],
-        icon: ChatIcon,
-        color: "success",
-      };
-    }
-
-    return defaultFreeSupport;
-  };
-
-  const supportLevel = getSupportLevel();
-  const isFreePlan = supportLevel.level === "free";
-
-  const handleFormChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  const handleSupportSubmit = () => {
-    const formDataToSubmit = new FormData();
-    formDataToSubmit.append("action", "support_request");
-    formDataToSubmit.append("subject", formData.subject);
-    formDataToSubmit.append("issueType", formData.issueType);
-    formDataToSubmit.append("description", formData.description);
-
-    submit(formDataToSubmit, { method: "post" });
-  };
+  // Use the same pattern as add-store.jsx - curried handleChange function
+  const handleChange = useCallback(
+    (field) => (value) => {
+      setFormData((prev) => ({ ...prev, [field]: value }));
+    },
+    [],
+  );
 
   // Handle form submission response
   useEffect(() => {
+    if (!actionData) {
+      return; // No action data yet
+    }
+
     if (actionData?.success) {
+      window.shopify.toast.show(actionData.message || "Support request submitted successfully! 🎉");
       // Clear form on successful submission
       setFormData({
         subject: "",
         issueType: "",
         description: "",
       });
-
-      // Show success message (you could add a toast notification here)
-      console.log("Support request submitted successfully!");
     } else if (actionData?.error) {
-      // Show error message
-      console.error("Support request failed:", actionData.error);
+      window.shopify.toast.show(actionData.error, { isError: true });
     }
   }, [actionData]);
 
   const handleDocumentationClick = (docType) => {
-    // Send Klaviyo event for documentation clicks
-    try {
-      sendKlaviyoSupportEvent({
-        subject: `Documentation Access: ${docType}`,
-        issueType: "documentation",
-        description: `User accessed ${docType} documentation`,
-        shop,
-        subscription,
-      });
-    } catch (error) {
-      console.error("Failed to send Klaviyo documentation event:", error);
-    }
+    // Just open the documentation - no tracking needed
   };
 
+  const documentationLinks = [
+    {
+      label: "Installation Guide",
+      href: "/docs/installation-guide",
+      description: "Learn how to set up and install the store locator",
+    },
+    {
+      label: "User Manual",
+      href: "/docs/user-manual",
+      description: "Complete guide to using all features",
+    },
+    {
+      label: "Troubleshooting Guide",
+      href: "/docs/troubleshooting-guide",
+      description: "Common issues and solutions",
+    },
+    {
+      label: "Frequently Asked Questions",
+      href: "/docs/faq",
+      description: "Answers to common questions",
+    },
+  ];
+
+  const legalLinks = [
+    {
+      label: "Privacy & GDPR",
+      href: "/app/gdpr",
+      description: "Data privacy and GDPR compliance",
+    },
+    {
+      label: "Privacy Policy",
+      href: "/privacy-policy",
+      description: "Our privacy policy",
+      external: true,
+    },
+    {
+      label: "Terms of Service",
+      href: "/terms-of-service",
+      description: "Terms and conditions",
+      external: true,
+    },
+  ];
+
   return (
-    <Page
-      title="Support"
-      backAction={{
-        content: "Dashboard",
-        onAction: () => navigate("/app"),
-      }}
-    >
-      <Layout>
-        <Layout.Section>
-          <BlockStack gap="400">
-            {/* Left Column - Self-Help Resources */}
-            <InlineGrid gap="400" columns={2}>
-              {/* Support Level Card */}
-              <Card>
-                <BlockStack gap="400">
-                  <InlineStack align="space-between">
-                    <Text variant="headingMd" as="h2">
-                      Your Support Level
-                    </Text>
-                    <Button size="slim" disabled>
-                      {supportLevel.name}
-                    </Button>
-                  </InlineStack>
-
-                  <Text variant="bodyMd" color="subdued">
-                    {supportLevel.description}
-                  </Text>
-
-                  <List gap="extraTight">
-                    {supportLevel.features.map((feature, index) => (
-                      <List.Item key={index}>
-                        {feature}
-                      </List.Item>
-                    ))}
-                  </List>
-                </BlockStack>
-              </Card>
-
-              <Card>
-                <BlockStack gap="400">
-                  <Text variant="headingMd" as="h2">
-                    Self-Help Resources
-                  </Text>
-
-                  <BlockStack gap="500">
-                    <Button
-                      fullWidth
-                      variant="tertiary"
-                      onClick={() => {
-                        handleDocumentationClick("Installation Guide");
-                        window.open("/docs/installation-guide", "_blank");
-                      }}
-                    >
-                      Installation Guide
-                    </Button>
-
-                    <Button
-                      fullWidth
-                      variant="tertiary"
-                      onClick={() => {
-                        handleDocumentationClick("User Manual");
-                        window.open("/docs/user-manual", "_blank");
-                      }}
-                    >
-                      User Manual
-                    </Button>
-
-                    <Button
-                      fullWidth
-                      variant="tertiary"
-                      onClick={() => {
-                        handleDocumentationClick("Troubleshooting Guide");
-                        window.open("/docs/troubleshooting-guide", "_blank");
-                      }}
-                    >
-                      Troubleshooting Guide
-                    </Button>
-
-                    <Button
-                      fullWidth
-                      variant="tertiary"
-                      onClick={() => {
-                        handleDocumentationClick("FAQ");
-                        window.open("/docs/faq", "_blank");
-                      }}
-                    >
-                      Frequently Asked Questions
-                    </Button>
-                  </BlockStack>
-                </BlockStack>
-              </Card>
-            </InlineGrid>
-
-            {/* Right Column - Support Level Card + Upgrade Banner */}
-            <BlockStack gap="400">
-              {/* Upgrade Banner (only if on free plan) */}
-              {isFreePlan && (
-                <Banner
-                  title="Upgrade for Enhanced Support"
-                  tone="info"
-                  action={{
-                    content: "View Plans",
-                    onAction: () => navigate("/app/billing"),
-                  }}
-                >
-                  <p>
-                    Upgrade to Basic or Pro plan for faster response times, live chat support, and dedicated assistance.
-                  </p>
-                </Banner>
-              )}
-            </BlockStack>
-          </BlockStack>
-        </Layout.Section>
-
-        {/* Support Request Form */}
-        <Layout.Section>
-          <Card>
-            <BlockStack gap="400">
-              <Text variant="headingMd" as="h2">
-                Submit Support Request
-              </Text>
-
-              <BlockStack gap="300">
-                <TextField
-                  label="Subject"
-                  placeholder="Brief description of your issue"
-                  autoComplete="off"
-                  value={formData.subject}
-                  onChange={(value) => handleFormChange("subject", value)}
-                />
-
-                <Select
-                  label="Issue Type"
-                  options={[
-                    { label: "General Question", value: "general" },
-                    { label: "Technical Issue", value: "technical" },
-                    { label: "Billing Question", value: "billing" },
-                    { label: "Feature Request", value: "feature" },
-                    { label: "Bug Report", value: "bug" },
-                  ]}
-                  value={formData.issueType}
-                  onChange={(value) => handleFormChange("issueType", value)}
-                />
-
-                <TextField
-                  label="Description"
-                  placeholder="Please provide detailed information about your issue..."
-                  multiline={5}
-                  value={formData.description}
-                  onChange={(value) => handleFormChange("description", value)}
-                />
-
-                <InlineStack gap="200">
-                  <Button
-                    primary
-                    onClick={handleSupportSubmit}
-                    disabled={!formData.subject || !formData.issueType || !formData.description}
+    <s-page heading="Support">
+      <ui-title-bar title="Support" />
+      
+      <s-stack direction="block" gap="large-200" paddingBlockStart="large" paddingBlockEnd="large" paddingInlineStart="base" paddingInlineEnd="base">
+        {/* Self-Help Resources Section */}
+        <s-section heading="Self-Help Resources">
+          <s-box padding="base" background="base" border="base" borderRadius="base">
+            <s-grid gap="base">
+              <s-paragraph color="subdued">
+                Find answers to common questions and learn how to get the most out of your store locator.
+              </s-paragraph>
+              
+              <s-grid gridTemplateColumns="repeat(auto-fit, minmax(250px, 1fr))" gap="base">
+                {documentationLinks.map((link, index) => (
+                  <s-box
+                    key={index}
+                    padding="base"
+                    background="subdued"
+                    borderRadius="base"
+                    border="base"
                   >
-                    Submit Request
-                  </Button>
+                <s-stack direction="block" gap="small-200">
+                  <s-heading>{link.label}</s-heading>
+                  <s-paragraph color="subdued">
+                    {link.description}
+                  </s-paragraph>
+                      <s-button
+                        variant="tertiary"
+                        onClick={() => {
+                          handleDocumentationClick(link.label);
+                          if (link.external) {
+                            window.open(link.href, "_blank");
+                          } else {
+                            window.open(link.href, "_blank");
+                          }
+                        }}
+                      >
+                        View {link.label}
+                      </s-button>
+                    </s-stack>
+                  </s-box>
+                ))}
+              </s-grid>
+            </s-grid>
+          </s-box>
+        </s-section>
 
-                  {isFreePlan && (
-                    <FeatureButton
-                      feature="priority_support"
-                      subscription={subscription}
-                      variant="tertiary"
-                      onClick={() => navigate("/app/billing")}
+        {/* Support Request Form Section */}
+        <s-section heading="Submit Support Request">
+          <s-box padding="base" background="base" border="base" borderRadius="base">
+            <s-stack direction="block" gap="base">
+              <s-paragraph color="subdued">
+                Can't find what you're looking for? Submit a support request and we'll help you out.
+              </s-paragraph>
+
+              <Form 
+                method="post"
+                onSubmit={(e) => {
+                  // Validate before submitting
+                  const subject = formData.subject?.trim();
+                  const issueType = formData.issueType?.trim();
+                  const description = formData.description?.trim();
+
+                  if (!subject || !issueType || !description) {
+                    e.preventDefault();
+                    window.shopify.toast.show("Please fill in all required fields", { isError: true });
+                    return false;
+                  }
+                }}
+              >
+                <input type="hidden" name="action" value="support_request" />
+                <s-stack direction="block" gap="base">
+                  <s-text-field
+                    name="subject"
+                    label="Subject"
+                    placeholder="Brief description of your issue"
+                    value={formData.subject}
+                    onChange={(e) => handleChange("subject")(e.target.value)}
+                    required
+                  />
+
+                  <s-select
+                    name="issueType"
+                    label="Issue Type"
+                    value={formData.issueType}
+                    onChange={(e) => handleChange("issueType")(e.target.value)}
+                    placeholder="Select an issue type"
+                    required
+                  >
+                    <s-option value="general">General Question</s-option>
+                    <s-option value="technical">Technical Issue</s-option>
+                    <s-option value="billing">Billing Question</s-option>
+                    <s-option value="feature">Feature Request</s-option>
+                    <s-option value="bug">Bug Report</s-option>
+                  </s-select>
+
+                  <s-text-area
+                    name="description"
+                    label="Description"
+                    placeholder="Please provide detailed information about your issue..."
+                    rows={5}
+                    value={formData.description}
+                    onChange={(e) => handleChange("description")(e.target.value)}
+                    required
+                  />
+
+                  <s-stack direction="inline" justifyContent="end">
+                    <s-button
+                      type="submit"
+                      variant="primary"
                     >
-                      Upgrade for Priority Support
-                    </FeatureButton>
-                  )}
-                </InlineStack>
-              </BlockStack>
-            </BlockStack>
-          </Card>
-        </Layout.Section>
-      </Layout>
-    </Page>
+                      Submit Request
+                    </s-button>
+                  </s-stack>
+                </s-stack>
+              </Form>
+            </s-stack>
+          </s-box>
+        </s-section>
+
+        {/* Legal & Privacy Section */}
+        <s-section heading="Legal & Privacy">
+          <s-box padding="base" background="base" border="base" borderRadius="base">
+            <s-grid gap="base">
+              <s-paragraph color="subdued">
+                Access legal documents and privacy information.
+              </s-paragraph>
+              
+              <s-stack direction="block" gap="small-200">
+                {legalLinks.map((link, index) => (
+                  <s-box
+                    key={index}
+                    padding="small-300"
+                    borderRadius="base"
+                    background="subdued"
+                  >
+                    <s-grid gridTemplateColumns="1fr auto" gap="base" alignItems="center">
+                  <s-stack direction="block" gap="small-100">
+                    <s-text type="strong">{link.label}</s-text>
+                    <s-text color="subdued">
+                      {link.description}
+                    </s-text>
+                  </s-stack>
+                      <s-button
+                        variant="tertiary"
+                        onClick={() => {
+                          if (link.external) {
+                            window.open(link.href, "_blank");
+                          } else {
+                            navigate(link.href);
+                          }
+                        }}
+                      >
+                        View
+                      </s-button>
+                    </s-grid>
+                  </s-box>
+                ))}
+              </s-stack>
+            </s-grid>
+          </s-box>
+        </s-section>
+
+        {/* Footer Help */}
+        <s-stack alignItems="center" paddingBlockStart="base">
+          <s-text>
+            Need more help? <s-link href={contactUrl} target="_blank">Contact us</s-link> or email us at <s-link href={`mailto:${contactEmail}`}>{contactEmail}</s-link>.
+          </s-text>
+        </s-stack>
+      </s-stack>
+    </s-page>
   );
-} 
+}
