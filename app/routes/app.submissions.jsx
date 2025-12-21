@@ -12,9 +12,10 @@ import {
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { useState, useCallback, useEffect } from "react";
-import { useLoaderData, useActionData, useSubmit } from "@remix-run/react";
+import { useLoaderData, useActionData, useSubmit, useRevalidator } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
 import { ApproveRejectSubmissionModal } from "../components/modals";
+import { sendSubmissionApprovedEmail, sendSubmissionRejectedEmail } from "../helper/emailManager.js";
 
 export const loader = async ({ request }) => {
   const { session, billing } = await authenticate.admin(request);
@@ -137,13 +138,13 @@ export const action = async ({ request }) => {
         },
       });
 
-      // Send approval notification to Klaviyo
+      // Send approval notification emails
       try {
-        await sendKlaviyoNotification(submission, "APPROVED", session.shop);
-      } catch (klaviyoError) {
+        await sendSubmissionApprovedEmail(submission, session.shop);
+      } catch (emailError) {
         console.error(
-          "Failed to send Klaviyo approval notification:",
-          klaviyoError,
+          "Failed to send approval notification emails:",
+          emailError,
         );
       }
 
@@ -184,75 +185,8 @@ export const action = async ({ request }) => {
   }
 };
 
-export async function sendKlaviyoNotification(submission, status, shop) {
-  const klaviyoApiKey = process.env.KLAVIYO_PRIVATE_API_KEY;
-
-  if (!klaviyoApiKey) {
-    console.log("Klaviyo credentials not configured");
-    return;
-  }
-
-  const eventData = {
-    data: {
-      type: "event",
-      attributes: {
-        properties: {
-          "Store Name": submission.storeName,
-          "Contact Name": submission.contactName,
-          "Contact Email": submission.contactEmail,
-          Status: status,
-          Shop: shop,
-          "Submission ID": submission.id,
-        },
-        metric: {
-          data: {
-            type: "metric",
-            attributes: {
-              name: `Store Submission ${status}`,
-              service: "store_locator",
-            },
-          },
-        },
-        profile: {
-          data: {
-            type: "profile",
-            attributes: {
-              email: submission.contactEmail,
-              first_name: submission.contactName?.split(" ")[0] || "",
-              last_name:
-                submission.contactName?.split(" ").slice(1).join(" ") || "",
-              phone_number: submission.contactPhone,
-              organization: submission.storeName,
-            },
-          },
-        },
-        time: new Date().toISOString(),
-        value: 1,
-        value_currency: "USD",
-        unique_id: `store_submission_${status}_${submission.id}`,
-      },
-    },
-  };
-
-  const response = await fetch("https://a.klaviyo.com/api/events", {
-    method: "POST",
-    headers: {
-      accept: "application/vnd.api+json",
-      revision: "2025-07-15",
-      "content-type": "application/vnd.api+json",
-      Authorization: `Klaviyo-API-Key ${klaviyoApiKey}`,
-    },
-    body: JSON.stringify(eventData),
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Klaviyo API error: ${response.status} ${response.statusText}`,
-    );
-  }
-
-  return response.json();
-}
+// Email notification functions moved to helper/emailManager.js
+// No longer using Klaviyo - now using Email Manager with SendGrid
 
 export default function Submissions() {
   const {
@@ -264,6 +198,7 @@ export default function Submissions() {
   } = useLoaderData();
   const actionData = useActionData();
   const submit = useSubmit();
+  const revalidator = useRevalidator();
   const shopify = useAppBridge();
 
   const [selectedSubmission, setSelectedSubmission] = useState(null);
@@ -326,6 +261,8 @@ export default function Submissions() {
       // Action completed - show toast
       if (actionData?.success) {
         shopify.toast.show(actionData.message || "Action completed successfully!");
+        // Revalidate to refresh the submissions list
+        revalidator.revalidate();
       } else {
         shopify.toast.show(actionData.error || "Action failed. Please try again.", {
           isError: true,
@@ -339,7 +276,7 @@ export default function Submissions() {
         setPendingAction(null);
       }, 500);
     }
-  }, [actionData, loading, shopify]);
+  }, [actionData, loading, shopify, revalidator]);
 
   const getStatusBadge = (status) => {
     switch (status) {
