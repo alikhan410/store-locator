@@ -47,6 +47,7 @@ model StoreSubmission {
   id            String   @id @default(cuid())
   shop          String
   storeName     String
+  storeType     String
   contactName   String
   contactEmail  String
   contactPhone  String?
@@ -60,8 +61,80 @@ model StoreSubmission {
   status        String   @default("PENDING") // PENDING, APPROVED, REJECTED
   notes         String?
   adminNotes    String?  // Internal notes for admin review
-  reviewedBy    String?  // Admin who reviewed the submission
-  reviewedAt    DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model SavedView {
+  id          String   @id @default(cuid())
+  shop        String
+  name        String
+  filters     String   // JSON string of filter values
+  isDefault   Boolean  @default(false) // Pre-populated system views
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([shop, name], name: "shop_name")
+  @@index([shop])
+}
+
+model StoreAnalyticsEvent {
+  id              String   @id @default(cuid())
+  shop            String
+  sessionId       String
+  eventType       String   // 'search', 'store_view', 'store_contact', 'radius_change'
+  
+  // Search event data
+  searchQuery     String?
+  resultsCount    Int?
+  radius          Float?
+  radiusUnit      String?  // 'miles', 'km'
+  
+  // Store event data
+  storeId         String?
+  storeName       String?
+  viewType        String?  // 'list', 'map_marker' (for store_view)
+  distanceFromUser Float?  // Distance in user's preferred unit
+  rankInResults   Int?     // Position in search results (1-based)
+  
+  // Contact event data
+  contactType     String?  // 'phone_click', 'website_click' (for store_contact)
+  
+  // Radius change event data
+  oldRadius       Float?
+  newRadius       Float?
+  
+  // Timestamps
+  timestamp       DateTime @default(now())
+  createdAt       DateTime @default(now())
+  
+  @@index([shop])
+  @@index([eventType])
+  @@index([timestamp])
+  @@index([sessionId])
+  @@index([storeId])
+  @@index([searchQuery])
+}
+
+model StoreAnalyticsAggregate {
+  id                String   @id @default(cuid())
+  shop              String
+  periodType        String   // 'day', 'week', 'month'
+  periodStart       DateTime
+  
+  // Search metrics
+  totalSearches     Int      @default(0)
+  uniqueSessions     Int      @default(0)
+  
+  // Top data (JSON arrays)
+  topSearchQueries   Json?    // [{"query": "Colorado Springs", "count": 45}, ...]
+  topStores         Json?    // [{"storeId": "123", "name": "Store Name", "views": 234, "contacts": 89}, ...]
+  
+  // Contact metrics
+  totalContacts     Int      @default(0) // Total phone + website clicks
+  
+  updatedAt         DateTime @updatedAt
+  
+  @@unique([shop, periodType, periodStart])
+  @@index([shop, periodType, periodStart])
 }
