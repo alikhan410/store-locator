@@ -7,8 +7,6 @@ import {
   useIndexResourceState,
   Text,
   ChoiceList,
-  RangeSlider,
-  Badge,
   useBreakpoints,
   Page,
   Spinner,
@@ -23,12 +21,10 @@ import {
   useActionData,
   useNavigate,
   useLocation,
+  useNavigation,
+  useRevalidator,
 } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
-import {
-  exportAllStoresToCSV,
-  exportFilteredStoresToCSV,
-} from "../helper/exportAction";
 import StoreCSVImport from "../components/storeCSVImport";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import {
@@ -36,59 +32,136 @@ import {
   ImportIcon,
   GlobeIcon,
   DeleteIcon,
+  SaveIcon,
 } from "@shopify/polaris-icons";
-import { ExportModal, BulkDeleteModal } from "../components/modals";
+import { ExportModal, BulkDeleteModal, SaveViewModal } from "../components/modals";
 import { states } from "../helper/states";
 
-export const loader = async ({ request }) => {
-  const { session, billing } = await authenticate.admin(request);
-  const prisma = (await import("../db.server")).default;
+// Helper function to build where clause from filters (reusable for loader and action)
+function buildWhereClause(shop, filters = {}) {
+  const conditions = [
+    { shop }, // GDPR compliance - always required
+  ];
 
-  // Get subscription information
-  const { appSubscriptions } = await billing.check();
-  const subscription = appSubscriptions?.[0];
-
-  // Parse URL parameters for pagination and search
-  const url = new URL(request.url);
-  const page = parseInt(url.searchParams.get("page") || "1");
-  const query = url.searchParams.get("query") || "";
-  const limit = 50; // Stores per page
-  const skip = (page - 1) * limit;
-
-  // Build where clause with shop filter and optional search
-  let whereClause = {
-    shop: session.shop, // GDPR compliance
-  };
+  const { query, hasCoordinates, hasPhone, hasLink } = filters;
 
   // Add search conditions if query is provided
   if (query) {
     const searchTerm = query.trim();
     if (searchTerm) {
-      // Combine shop filter with search using AND
-      whereClause = {
-        AND: [
-          { shop: session.shop },
-          {
-            OR: [
-              { name: { contains: searchTerm, mode: "insensitive" } },
-              { address: { contains: searchTerm, mode: "insensitive" } },
-              { city: { contains: searchTerm, mode: "insensitive" } },
-              { state: { contains: searchTerm, mode: "insensitive" } },
-              { country: { contains: searchTerm, mode: "insensitive" } },
-              { phone: { contains: searchTerm, mode: "insensitive" } },
-            ],
-          },
+      conditions.push({
+        OR: [
+          { name: { contains: searchTerm, mode: "insensitive" } },
+          { address: { contains: searchTerm, mode: "insensitive" } },
+          { city: { contains: searchTerm, mode: "insensitive" } },
+          { state: { contains: searchTerm, mode: "insensitive" } },
+          { country: { contains: searchTerm, mode: "insensitive" } },
+          { phone: { contains: searchTerm, mode: "insensitive" } },
         ],
-      };
+      });
     }
   }
 
-  // Get total count for pagination info (with search applied)
+  // Add hasCoordinates filter
+  if (hasCoordinates === "has") {
+    conditions.push({
+      lat: { not: null },
+      lng: { not: null },
+    });
+  } else if (hasCoordinates === "none") {
+    conditions.push({
+      OR: [
+        { lat: null },
+        { lng: null },
+      ],
+    });
+  }
+
+  // Add hasPhone filter
+  if (hasPhone === "has") {
+    conditions.push({
+      phone: { not: null, not: "" },
+    });
+  } else if (hasPhone === "none") {
+    conditions.push({
+      OR: [
+        { phone: null },
+        { phone: "" },
+      ],
+    });
+  }
+
+  // Add hasLink filter
+  if (hasLink === "has") {
+    conditions.push({
+      link: { not: null, not: "" },
+    });
+  } else if (hasLink === "none") {
+    conditions.push({
+      OR: [
+        { link: null },
+        { link: "" },
+      ],
+    });
+  }
+
+  // Add state filter if provided
+  if (filters.stateFilter && Array.isArray(filters.stateFilter) && filters.stateFilter.length > 0) {
+    conditions.push({
+      state: { in: filters.stateFilter },
+    });
+  }
+
+  // Add city filter if provided (taggedWith)
+  if (filters.city) {
+    conditions.push({
+      city: { contains: filters.city, mode: "insensitive" },
+    });
+  }
+
+  return {
+    AND: conditions,
+  };
+}
+
+export const loader = async ({ request }) => {
+  const { session } = await authenticate.admin(request);
+  const prisma = (await import("../db.server")).default;
+
+  // Parse URL parameters for pagination, search, and filters
+  const url = new URL(request.url);
+  const page = parseInt(url.searchParams.get("page") || "1");
+  const query = url.searchParams.get("query") || "";
+  const hasCoordinates = url.searchParams.get("hasCoordinates");
+  const hasPhone = url.searchParams.get("hasPhone");
+  const hasLink = url.searchParams.get("hasLink");
+  const city = url.searchParams.get("city") || "";
+  const stateFilterStr = url.searchParams.get("stateFilter");
+  const stateFilter = stateFilterStr ? JSON.parse(stateFilterStr) : [];
+  const limit = 50; // Stores per page
+  const skip = (page - 1) * limit;
+
+  // Build where clause using helper function
+  const whereClause = buildWhereClause(session.shop, {
+    query,
+    hasCoordinates,
+    hasPhone,
+    hasLink,
+    city,
+    stateFilter,
+  });
+
+  // Get total count for pagination info (with filters applied)
   const totalCount = await prisma.store.count({
     where: whereClause,
   });
 
-  // Get paginated stores (with search applied)
+  // Get total count of ALL stores (no filters, just shop)
+  const totalAllStores = await prisma.store.count({
+    where: { shop: session.shop },
+  });
+
+  // Get paginated stores (with filters applied)
   const stores = await prisma.store.findMany({
     where: whereClause,
     skip,
@@ -96,9 +169,46 @@ export const loader = async ({ request }) => {
     orderBy: { name: "asc" }, // Consistent ordering
   });
 
+  // Ensure default saved views exist
+  const defaultViews = [
+    {
+      name: "Missing Coordinates",
+      filters: JSON.stringify({ hasCoordinates: ["none"] }),
+      isDefault: true,
+    },
+    {
+      name: "Missing Phone",
+      filters: JSON.stringify({ hasPhone: ["none"] }),
+      isDefault: true,
+    },
+  ];
+
+  // Create default views if they don't exist
+  for (const defaultView of defaultViews) {
+    await prisma.savedView.upsert({
+      where: {
+        shop_name: {
+          shop: session.shop,
+          name: defaultView.name,
+        },
+      },
+      update: {},
+      create: {
+        shop: session.shop,
+        ...defaultView,
+      },
+    });
+  }
+
+  // Fetch all saved views for this shop
+  const savedViews = await prisma.savedView.findMany({
+    where: { shop: session.shop },
+    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+  });
+
   return {
     stores,
-    subscription,
+    savedViews,
     pagination: {
       currentPage: page,
       totalCount,
@@ -114,6 +224,109 @@ export const action = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   const formData = await request.formData();
   const action = formData.get("action");
+
+  // Handle export_stores action
+  if (action === "export_stores") {
+    try {
+      const prisma = (await import("../db.server")).default;
+      
+      // Get filter parameters
+      const query = formData.get("query") || "";
+      const hasCoordinates = formData.get("hasCoordinates") || null;
+      const hasPhone = formData.get("hasPhone") || null;
+      const hasLink = formData.get("hasLink") || null;
+      const stateFilterStr = formData.get("stateFilter");
+      const city = formData.get("city") || "";
+      
+      const stateFilter = stateFilterStr ? JSON.parse(stateFilterStr) : [];
+      
+      // Build where clause using same logic as loader
+      const whereClause = buildWhereClause(session.shop, {
+        query,
+        hasCoordinates,
+        hasPhone,
+        hasLink,
+        stateFilter,
+        city,
+      });
+
+      // Fetch ALL stores matching filters (no pagination)
+      const stores = await prisma.store.findMany({
+        where: whereClause,
+        orderBy: { name: "asc" },
+      });
+
+      // Generate CSV content
+      const headers = [
+        "Name",
+        "Address",
+        "Address 2",
+        "City",
+        "State",
+        "Zip",
+        "Country",
+        "Latitude",
+        "Longitude",
+        "Phone",
+        "Link",
+      ];
+
+      const csvRows = [
+        headers.join(","),
+        ...stores.map((store) =>
+          [
+            store.name,
+            store.address,
+            store.address2 || "",
+            store.city,
+            store.state,
+            store.zip,
+            store.country,
+            store.lat || "",
+            store.lng || "",
+            store.phone || "",
+            store.link || "",
+          ]
+            .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+            .join(","),
+        ),
+      ];
+
+      const csvContent = csvRows.join("\n");
+
+      // Generate filename based on filters
+      const filterParts = [];
+      if (query) filterParts.push(`search-${query.substring(0, 20)}`);
+      if (hasCoordinates) filterParts.push(`coords-${hasCoordinates}`);
+      if (hasPhone) filterParts.push(`phone-${hasPhone}`);
+      if (hasLink) filterParts.push(`link-${hasLink}`);
+      if (stateFilter.length > 0) filterParts.push(`${stateFilter.length}-states`);
+      if (city) filterParts.push(`city-${city.substring(0, 15)}`);
+      
+      const filename = filterParts.length > 0 
+        ? `stores-${filterParts.join("-")}-${stores.length}.csv`
+        : `all-stores-${stores.length}.csv`;
+
+      // Return CSV response
+      return new Response(csvContent, {
+        headers: {
+          "Content-Type": "text/csv;charset=utf-8",
+          "Content-Disposition": `attachment; filename="${filename}"`,
+        },
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      return new Response(
+        `Failed to export stores: ${error.message}`,
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "text/plain",
+          },
+        }
+      );
+    }
+  }
 
   if (action === "bulk_delete") {
     const storeIds = formData.getAll("storeIds");
@@ -144,22 +357,117 @@ export const action = async ({ request }) => {
     }
   }
 
+  if (action === "save_view") {
+    const viewName = formData.get("viewName");
+    const filters = formData.get("filters");
+
+    if (!viewName || !filters) {
+      return { success: false, error: "View name and filters are required" };
+    }
+
+    try {
+      const prisma = (await import("../db.server")).default;
+
+      const savedView = await prisma.savedView.create({
+        data: {
+          shop: session.shop,
+          name: viewName,
+          filters: filters,
+          isDefault: false,
+        },
+      });
+
+      return {
+        success: true,
+        action: "save_view",
+        savedView,
+      };
+    } catch (error) {
+      console.error("Save view error:", error);
+      if (error.code === "P2002") {
+        return { success: false, action: "save_view", error: "A view with this name already exists" };
+      }
+      return { success: false, action: "save_view", error: "Failed to save view" };
+    }
+  }
+
+  if (action === "update_view") {
+    const viewId = formData.get("viewId");
+    const filters = formData.get("filters");
+
+    if (!viewId || !filters) {
+      return { success: false, action: "update_view", error: "View ID and filters are required" };
+    }
+
+    try {
+      const prisma = (await import("../db.server")).default;
+
+      const updatedView = await prisma.savedView.update({
+        where: {
+          id: viewId,
+          shop: session.shop, // Ensure user can only update their own views
+        },
+        data: {
+          filters: filters,
+        },
+      });
+
+      return {
+        success: true,
+        action: "update_view",
+        savedView: updatedView,
+      };
+    } catch (error) {
+      console.error("Update view error:", error);
+      return { success: false, action: "update_view", error: "Failed to update view" };
+    }
+  }
+
+  if (action === "delete_view") {
+    const viewId = formData.get("viewId");
+
+    if (!viewId) {
+      return { success: false, error: "View ID is required" };
+    }
+
+    try {
+      const prisma = (await import("../db.server")).default;
+
+      await prisma.savedView.delete({
+        where: {
+          id: viewId,
+          shop: session.shop, // GDPR compliance
+        },
+      });
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      console.error("Delete view error:", error);
+      return { success: false, error: "Failed to delete view" };
+    }
+  }
+
   return { success: false, error: "Invalid action" };
 };
 
 export default function IndexTableWithViewsSearchFilterSorting() {
+  const shopify = useAppBridge();
   const [isMounted, setIsMounted] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const breakpoints = useBreakpoints();
 
-  const { stores, subscription, pagination } = useLoaderData();
+  const { stores, pagination, savedViews } = useLoaderData();
   const submit = useSubmit();
   const actionData = useActionData();
   const navigate = useNavigate();
   const location = useLocation();
-  const shopify = useAppBridge();
+  const navigation = useNavigation();
+  const revalidator = useRevalidator();
+  
+  const isNavigating = navigation.state === "loading";
 
-  const [accountStatus, setAccountStatus] = useState(undefined);
   const [hasCoordinates, setHasCoordinates] = useState(undefined);
   const [hasPhone, setHasPhone] = useState(undefined);
   const [hasLink, setHasLink] = useState(undefined);
@@ -168,15 +476,25 @@ export default function IndexTableWithViewsSearchFilterSorting() {
   const [stateFilter, setStateFilter] = useState([]);
   const [navigatingToMap, setNavigatingToMap] = useState(false);
   const searchTimeoutRef = useRef(null);
+  const [saveViewLoading, setSaveViewLoading] = useState(false);
 
-  // Add back client-side filtering for Phase 1
-  const [filteredStores, setFilteredStores] = useState(stores);
-
-  // Sync queryValue from URL params (on mount and when location changes)
+  // Sync filters from URL params (on mount and when location changes)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const urlQuery = params.get("query") || "";
+    const urlHasCoordinates = params.get("hasCoordinates");
+    const urlHasPhone = params.get("hasPhone");
+    const urlHasLink = params.get("hasLink");
+    const urlCity = params.get("city") || "";
+    const urlStateFilterStr = params.get("stateFilter");
+    const urlStateFilter = urlStateFilterStr ? JSON.parse(urlStateFilterStr) : [];
+    
     setQueryValue(urlQuery);
+    setHasCoordinates(urlHasCoordinates ? [urlHasCoordinates] : undefined);
+    setHasPhone(urlHasPhone ? [urlHasPhone] : undefined);
+    setHasLink(urlHasLink ? [urlHasLink] : undefined);
+    setTaggedWith(urlCity);
+    setStateFilter(urlStateFilter);
   }, [location.search]); // Sync when URL search params change
 
   // 1. Mount check
@@ -187,180 +505,143 @@ export default function IndexTableWithViewsSearchFilterSorting() {
   // Handle action data response
   useEffect(() => {
     if (actionData?.success) {
-      // Refresh the page to show updated data
-      window.location.reload();
+      // Close save view modal and show success toast
+      if (actionData.action === "save_view") {
+        shopify.modal.hide("save-view-modal");
+        setSaveViewLoading(false);
+        shopify.toast.show("Search saved successfully");
+        // Revalidate to show the new view in tabs
+        revalidator.revalidate();
+      } else if (actionData.action === "update_view") {
+        setSaveViewLoading(false);
+        shopify.toast.show("View updated successfully");
+        // Revalidate to reflect the updated filters
+        revalidator.revalidate();
+      } else {
+        // For other actions (bulk delete, delete view), show message if available and revalidate
+        if (actionData.message) {
+          shopify.toast.show(actionData.message);
+        }
+        // Reset delete loading state for bulk delete
+        if (actionData.deletedCount !== undefined) {
+          setDeleteLoading(false);
+        }
+        revalidator.revalidate();
+      }
     } else if (actionData?.error) {
       console.error("Action failed:", actionData.error);
+      setSaveViewLoading(false);
+      setDeleteLoading(false); // Reset delete loading on error too
+      shopify.toast.show(actionData.error, { isError: true });
     }
-  }, [actionData]);
+  }, [actionData, shopify, revalidator]);
 
-  useEffect(() => {
-    let filtered = stores;
+  // Use stores directly from loader (already filtered and paginated)
+  const paginatedStores = stores;
 
-    // Note: Query (search) filtering is now handled server-side in the loader
-    // No need to filter by queryValue here anymore
+  // Build tabs from saved views
+  const tabs = useMemo(() => {
+    // Always start with "All" view
+    const allTab = {
+      content: "All",
+      index: 0,
+      onAction: () => {},
+      id: "all-0",
+      isLocked: true,
+      filters: {},
+    };
 
-    // Filter by account status
-    if (accountStatus && accountStatus.length > 0) {
-      // For now, we'll keep all stores since we don't have account status data
-      // This can be implemented when account status data is available
-    }
-
-    // Filter by has coordinates
-    if (hasCoordinates && hasCoordinates.length > 0) {
-      if (hasCoordinates.includes("has")) {
-        filtered = filtered.filter((store) => {
-          const hasLat =
-            store.lat !== null && store.lat !== undefined && store.lat !== "";
-          const hasLng =
-            store.lng !== null && store.lng !== undefined && store.lng !== "";
-          return hasLat && hasLng;
-        });
-      }
-      if (hasCoordinates.includes("none")) {
-        filtered = filtered.filter((store) => {
-          const hasLat =
-            store.lat !== null && store.lat !== undefined && store.lat !== "";
-          const hasLng =
-            store.lng !== null && store.lng !== undefined && store.lng !== "";
-          return !hasLat || !hasLng;
-        });
-      }
-    }
-
-    // Filter by has phone
-    if (hasPhone && hasPhone.length > 0) {
-      if (hasPhone.includes("has")) {
-        filtered = filtered.filter((store) => {
-          return (
-            store.phone !== null &&
-            store.phone !== undefined &&
-            store.phone !== ""
-          );
-        });
-      }
-      if (hasPhone.includes("none")) {
-        filtered = filtered.filter((store) => {
-          return !store.phone || store.phone === null || store.phone === "";
-        });
-      }
-    }
-
-    // Filter by has link
-    if (hasLink && hasLink.length > 0) {
-      if (hasLink.includes("has")) {
-        filtered = filtered.filter((store) => {
-          return (
-            store.link !== null && store.link !== undefined && store.link !== ""
-          );
-        });
-      }
-      if (hasLink.includes("none")) {
-        filtered = filtered.filter((store) => {
-          return !store.link || store.link === null || store.link === "";
-        });
-      }
-    }
-
-    // Filter by tagged with (city)
-    if (taggedWith) {
-      const city = taggedWith.toLowerCase();
-      filtered = filtered.filter((store) =>
-        store.city?.toLowerCase().includes(city),
-      );
-    }
-
-    // Filter by state
-    if (stateFilter && stateFilter.length > 0) {
-      filtered = filtered.filter((store) => stateFilter.includes(store.state));
-    }
-
-    setFilteredStores(filtered);
-  }, [
-    stores,
-    accountStatus,
-    hasCoordinates,
-    hasPhone,
-    hasLink,
-    taggedWith,
-    stateFilter,
-  ]);
-
-  // Use filtered stores for display
-  const paginatedStores = filteredStores;
-
-  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  const [itemStrings, setItemStrings] = useState([
-    "All",
-    "Colorado",
-    "Phone Missing",
-  ]);
-  const deleteView = (index) => {
-    const newItemStrings = [...itemStrings];
-    newItemStrings.splice(index, 1);
-    setItemStrings(newItemStrings);
-    setSelected(0);
-  };
-
-  const duplicateView = async (name) => {
-    setItemStrings([...itemStrings, name]);
-    setSelected(itemStrings.length);
-    await sleep(1);
-    return true;
-  };
-
-  const tabs = itemStrings.map((item, index) => ({
-    content: item,
-    index,
-    onAction: () => {},
-    id: `${item}-${index}`,
-    isLocked: index === 0,
-    actions:
-      index === 0
-        ? []
-        : [
-            {
-              type: "rename",
-              onAction: () => {},
-              onPrimaryAction: async (value) => {
-                const newItemsStrings = tabs.map((item, idx) => {
-                  if (idx === index) {
-                    return value;
-                  }
-                  return item.content;
-                });
-                await sleep(1);
-                setItemStrings(newItemsStrings);
-                return true;
+    const viewTabs = savedViews.map((view, index) => {
+      const viewIndex = index + 1; // +1 because "All" is at index 0
+      const parsedFilters = JSON.parse(view.filters);
+      
+      return {
+        content: view.name,
+        index: viewIndex,
+        onAction: () => {},
+        id: `${view.id}-${viewIndex}`,
+        isLocked: view.isDefault, // Lock default views (Missing Coordinates, Missing Phone)
+        viewId: view.id,
+        filters: parsedFilters,
+        actions: view.isDefault
+          ? [] // No actions for default views
+          : [
+              {
+                type: "delete",
+                onAction: () => {},
+                onPrimaryAction: async () => {
+                  // Delete view via action
+                  const formData = new FormData();
+                  formData.append("action", "delete_view");
+                  formData.append("viewId", view.id);
+                  submit(formData, { method: "post" });
+                  return true;
+                },
               },
-            },
-            {
-              type: "duplicate",
-              onPrimaryAction: async (value) => {
-                await sleep(1);
-                duplicateView(value);
-                return true;
-              },
-            },
-            {
-              type: "edit",
-            },
-            {
-              type: "delete",
-              onPrimaryAction: async () => {
-                await sleep(1);
-                deleteView(index);
-                return true;
-              },
-            },
-          ],
-  }));
+            ],
+      };
+    });
+
+    return [allTab, ...viewTabs];
+  }, [savedViews, submit]);
+
   const [selected, setSelected] = useState(0);
-  const onCreateNewView = async (value) => {
-    await sleep(500);
-    setItemStrings([...itemStrings, value]);
-    setSelected(itemStrings.length);
-    return true;
+
+  // Handle tab selection and apply filters
+  const handleTabChange = useCallback((selectedIndex) => {
+    setSelected(selectedIndex);
+    const selectedTab = tabs[selectedIndex];
+    
+    if (selectedTab && selectedTab.filters) {
+      const filters = selectedTab.filters;
+      
+      // Apply filters from saved view
+      if (filters.query !== undefined) setQueryValue(filters.query || "");
+      if (filters.stateFilter !== undefined) setStateFilter(filters.stateFilter || []);
+      if (filters.hasCoordinates !== undefined) setHasCoordinates(filters.hasCoordinates);
+      if (filters.hasPhone !== undefined) setHasPhone(filters.hasPhone);
+      if (filters.hasLink !== undefined) setHasLink(filters.hasLink);
+      if (filters.taggedWith !== undefined) setTaggedWith(filters.taggedWith || "");
+      
+      // Navigate with filters as URL parameters and reset to page 1
+      const params = new URLSearchParams();
+      params.set("page", "1"); // Always reset to page 1
+      
+      // Add filters to URL so server can apply them
+      if (filters.query) params.set("query", filters.query);
+      if (filters.hasCoordinates && filters.hasCoordinates.length > 0) {
+        params.set("hasCoordinates", filters.hasCoordinates[0]); // "has" or "none"
+      }
+      if (filters.hasPhone && filters.hasPhone.length > 0) {
+        params.set("hasPhone", filters.hasPhone[0]); // "has" or "none"
+      }
+      if (filters.hasLink && filters.hasLink.length > 0) {
+        params.set("hasLink", filters.hasLink[0]); // "has" or "none"
+      }
+      if (filters.taggedWith) params.set("city", filters.taggedWith);
+      if (filters.stateFilter && filters.stateFilter.length > 0) {
+        params.set("stateFilter", JSON.stringify(filters.stateFilter));
+      }
+      
+      navigate(`/app/view-stores?${params.toString()}`);
+    } else {
+      // "All" view - clear all filters and reset to page 1
+      setQueryValue("");
+      setStateFilter([]);
+      setHasCoordinates(undefined);
+      setHasPhone(undefined);
+      setHasLink(undefined);
+      setTaggedWith("");
+      
+      // Navigate to page 1 explicitly
+      navigate("/app/view-stores?page=1");
+    }
+  }, [tabs, navigate]);
+
+  const onCreateNewView = async () => {
+    // Show save modal when creating new view
+    shopify.modal.show("save-view-modal");
+    return false; // Return false to prevent default behavior
   };
   const sortOptions = [
     { label: "Order", value: "order asc", directionLabel: "Ascending" },
@@ -379,86 +660,289 @@ export default function IndexTableWithViewsSearchFilterSorting() {
     handleQueryValueRemove();
   };
 
-  const onHandleSave = async () => {
-    await sleep(1);
-    return true;
+  // Handle saving a new view
+  const handleSaveView = (viewName) => {
+    setSaveViewLoading(true);
+    
+    // Capture current filter state
+    const filters = JSON.stringify({
+      query: queryValue,
+      stateFilter,
+      hasCoordinates,
+      hasPhone,
+      hasLink,
+      taggedWith,
+    });
+    
+    // Submit save_view action
+    const formData = new FormData();
+    formData.append("action", "save_view");
+    formData.append("viewName", viewName);
+    formData.append("filters", filters);
+    submit(formData, { method: "post" });
   };
 
-  const primaryAction =
-    selected === 0
-      ? {
-          type: "save-as",
-          onAction: onCreateNewView,
-          disabled: false,
-          loading: false,
-        }
-      : {
-          type: "save",
-          onAction: onHandleSave,
-          disabled: false,
-          loading: false,
-        };
+  // Disable primaryAction to avoid IndexFilters' built-in modal
+  const primaryAction = undefined;
 
-  // Export functions - moved here after all state variables are declared
-  const handleExportAll = useCallback(() => {
-    // Note: This only exports current page data for Phase 1
-    // In Phase 2, we'll implement server-side export for all data
-    exportAllStoresToCSV(stores);
-  }, [stores]);
-
-  const handleExportFiltered = useCallback(() => {
-    // Note: This only exports current page data for Phase 1
-    // In Phase 2, we'll implement server-side export for filtered data
-    const currentFilters = {
-      query: queryValue,
-      state: stateFilter,
-      city: taggedWith,
-      hasCoordinates: hasCoordinates,
-    };
-    exportFilteredStoresToCSV(paginatedStores, currentFilters);
-  }, [paginatedStores, queryValue, stateFilter, taggedWith, hasCoordinates]);
-
-  function onImport(parsedStores) {
-    fetch("/import-stores", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stores: parsedStores }),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.success) {
-          // Refresh the stores list
-          window.location.reload();
-        } else {
-          console.error("Import failed:", data.error);
-        }
-      })
-      .catch((error) => {
-        console.error("Import error:", error);
+  // Export functions - server-side export for all filtered data
+  // Use fetch with credentials to get CSV, then trigger download via blob
+  const handleExportAll = useCallback(async () => {
+    try {
+      const response = await fetch("/app/export-stores?scope=all", {
+        method: "GET",
+        credentials: "include", // Include cookies for authentication
       });
-  }
+      
+      if (!response.ok) {
+        // If we get redirected (302), it means authentication failed
+        if (response.redirected || response.status === 302) {
+          shopify.toast.show("Authentication failed. Please refresh the page.", { isError: true });
+          return;
+        }
+        throw new Error(`Export failed: ${response.status} ${response.statusText}`);
+      }
+      
+      // Get the CSV content
+      const blob = await response.blob();
+      
+      // Get filename from Content-Disposition header
+      const contentDisposition = response.headers.get("Content-Disposition");
+      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+      const filename = filenameMatch ? filenameMatch[1] : "all-stores.csv";
+      
+      // Trigger download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export error:", error);
+      shopify.toast.show(`Failed to export: ${error.message}`, { isError: true });
+    }
+  }, [shopify]);
+
+  const handleExportCurrent = useCallback(async () => {
+    // Export only the current page
+    const params = new URLSearchParams(location.search);
+    
+    // Build export URL with all filter params and pagination
+    const exportParams = new URLSearchParams();
+    exportParams.set("scope", "current");
+    
+    const query = params.get("query");
+    const hasCoordinates = params.get("hasCoordinates");
+    const hasPhone = params.get("hasPhone");
+    const hasLink = params.get("hasLink");
+    const city = params.get("city");
+    const stateFilterStr = params.get("stateFilter");
+    const page = params.get("page") || "1";
+    const limit = pagination.limit.toString();
+    
+    if (query) exportParams.set("query", query);
+    if (hasCoordinates) exportParams.set("hasCoordinates", hasCoordinates);
+    if (hasPhone) exportParams.set("hasPhone", hasPhone);
+    if (hasLink) exportParams.set("hasLink", hasLink);
+    if (city) exportParams.set("city", city);
+    if (stateFilterStr) exportParams.set("stateFilter", stateFilterStr);
+    exportParams.set("page", page);
+    exportParams.set("limit", limit);
+    
+    try {
+      const response = await fetch(`/app/export-stores?${exportParams.toString()}`, {
+        method: "GET",
+        credentials: "include", // Include cookies for authentication
+      });
+      
+      if (!response.ok) {
+        // If we get redirected (302), it means authentication failed
+        if (response.redirected || response.status === 302) {
+          shopify.toast.show("Authentication failed. Please refresh the page.", { isError: true });
+          return;
+        }
+        throw new Error(`Export failed: ${response.status} ${response.statusText}`);
+      }
+      
+      // Get the CSV content
+      const blob = await response.blob();
+      
+      // Get filename from Content-Disposition header
+      const contentDisposition = response.headers.get("Content-Disposition");
+      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+      const filename = filenameMatch ? filenameMatch[1] : "current-page-stores.csv";
+      
+      // Trigger download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export error:", error);
+      shopify.toast.show(`Failed to export: ${error.message}`, { isError: true });
+    }
+  }, [location.search, pagination.limit, shopify]);
+
+  const handleExportFiltered = useCallback(async () => {
+    // Export filtered stores using current filters from URL
+    const params = new URLSearchParams(location.search);
+    
+    // Build export URL with all filter params
+    const exportParams = new URLSearchParams();
+    exportParams.set("scope", "filtered");
+    
+    const query = params.get("query");
+    const hasCoordinates = params.get("hasCoordinates");
+    const hasPhone = params.get("hasPhone");
+    const hasLink = params.get("hasLink");
+    const city = params.get("city");
+    const stateFilterStr = params.get("stateFilter");
+    
+    if (query) exportParams.set("query", query);
+    if (hasCoordinates) exportParams.set("hasCoordinates", hasCoordinates);
+    if (hasPhone) exportParams.set("hasPhone", hasPhone);
+    if (hasLink) exportParams.set("hasLink", hasLink);
+    if (city) exportParams.set("city", city);
+    if (stateFilterStr) exportParams.set("stateFilter", stateFilterStr);
+    
+    try {
+      const response = await fetch(`/app/export-stores?${exportParams.toString()}`, {
+        method: "GET",
+        credentials: "include", // Include cookies for authentication
+      });
+      
+      if (!response.ok) {
+        // If we get redirected (302), it means authentication failed
+        if (response.redirected || response.status === 302) {
+          shopify.toast.show("Authentication failed. Please refresh the page.", { isError: true });
+          return;
+        }
+        throw new Error(`Export failed: ${response.status} ${response.statusText}`);
+      }
+      
+      // Get the CSV content
+      const blob = await response.blob();
+      
+      // Get filename from Content-Disposition header
+      const contentDisposition = response.headers.get("Content-Disposition");
+      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+      const filename = filenameMatch ? filenameMatch[1] : "filtered-stores.csv";
+      
+      // Trigger download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export error:", error);
+      shopify.toast.show(`Failed to export: ${error.message}`, { isError: true });
+    }
+  }, [location.search, shopify]);
+
+  const onImport = useCallback((parsedStores) => {
+    // The component already handles the import fetch
+    // This callback is just to refresh the data and close the modal
+    shopify.modal.hide("import-csv-modal");
+    revalidator.revalidate();
+  }, [shopify, revalidator]);
 
   const handleExportModalClose = () => {
     shopify.modal.hide("export-modal");
   };
 
-  const handleAccountStatusChange = useCallback(
-    (value) => setAccountStatus(value),
-    [],
-  );
+
   const handleHasCoordinatesChange = useCallback(
-    (value) => setHasCoordinates(value),
-    [],
+    (value) => {
+      setHasCoordinates(value);
+      const params = new URLSearchParams(window.location.search);
+      params.set("page", "1"); // Reset to page 1
+      
+      if (value && value.length > 0) {
+        params.set("hasCoordinates", value[0]);
+      } else {
+        params.delete("hasCoordinates");
+      }
+      
+      navigate(`/app/view-stores?${params.toString()}`);
+    },
+    [navigate],
   );
-  const handleHasPhoneChange = useCallback((value) => setHasPhone(value), []);
-  const handleHasLinkChange = useCallback((value) => setHasLink(value), []);
+  
+  const handleHasPhoneChange = useCallback(
+    (value) => {
+      setHasPhone(value);
+      const params = new URLSearchParams(window.location.search);
+      params.set("page", "1"); // Reset to page 1
+      
+      if (value && value.length > 0) {
+        params.set("hasPhone", value[0]);
+      } else {
+        params.delete("hasPhone");
+      }
+      
+      navigate(`/app/view-stores?${params.toString()}`);
+    },
+    [navigate],
+  );
+  
+  const handleHasLinkChange = useCallback(
+    (value) => {
+      setHasLink(value);
+      const params = new URLSearchParams(window.location.search);
+      params.set("page", "1"); // Reset to page 1
+      
+      if (value && value.length > 0) {
+        params.set("hasLink", value[0]);
+      } else {
+        params.delete("hasLink");
+      }
+      
+      navigate(`/app/view-stores?${params.toString()}`);
+    },
+    [navigate],
+  );
   const handleTaggedWithChange = useCallback(
-    (value) => setTaggedWith(value),
-    [],
+    (value) => {
+      setTaggedWith(value);
+      const params = new URLSearchParams(window.location.search);
+      params.set("page", "1"); // Reset to page 1
+      
+      if (value && value.trim()) {
+        params.set("city", value);
+      } else {
+        params.delete("city");
+      }
+      
+      navigate(`/app/view-stores?${params.toString()}`);
+    },
+    [navigate],
   );
   const handleStateFilterChange = useCallback(
-    (value) => setStateFilter(value),
-    [],
+    (value) => {
+      setStateFilter(value);
+      const params = new URLSearchParams(window.location.search);
+      params.set("page", "1"); // Reset to page 1
+      
+      if (value && value.length > 0) {
+        params.set("stateFilter", JSON.stringify(value));
+      } else {
+        params.delete("stateFilter");
+      }
+      
+      navigate(`/app/view-stores?${params.toString()}`);
+    },
+    [navigate],
   );
   const handleFiltersQueryChange = useCallback(
     (value) => {
@@ -481,18 +965,43 @@ export default function IndexTableWithViewsSearchFilterSorting() {
     },
     [navigate],
   );
-  const handleAccountStatusRemove = useCallback(
-    () => setAccountStatus(undefined),
-    [],
-  );
-  const handleHasCoordinatesRemove = useCallback(
-    () => setHasCoordinates(undefined),
-    [],
-  );
-  const handleHasPhoneRemove = useCallback(() => setHasPhone(undefined), []);
-  const handleHasLinkRemove = useCallback(() => setHasLink(undefined), []);
-  const handleTaggedWithRemove = useCallback(() => setTaggedWith(""), []);
-  const handleStateFilterRemove = useCallback(() => setStateFilter([]), []);
+  const handleHasCoordinatesRemove = useCallback(() => {
+    setHasCoordinates(undefined);
+    const params = new URLSearchParams(window.location.search);
+    params.delete("hasCoordinates");
+    params.set("page", "1");
+    navigate(`/app/view-stores?${params.toString()}`);
+  }, [navigate]);
+  
+  const handleHasPhoneRemove = useCallback(() => {
+    setHasPhone(undefined);
+    const params = new URLSearchParams(window.location.search);
+    params.delete("hasPhone");
+    params.set("page", "1");
+    navigate(`/app/view-stores?${params.toString()}`);
+  }, [navigate]);
+  
+  const handleHasLinkRemove = useCallback(() => {
+    setHasLink(undefined);
+    const params = new URLSearchParams(window.location.search);
+    params.delete("hasLink");
+    params.set("page", "1");
+    navigate(`/app/view-stores?${params.toString()}`);
+  }, [navigate]);
+  const handleTaggedWithRemove = useCallback(() => {
+    setTaggedWith("");
+    const params = new URLSearchParams(window.location.search);
+    params.delete("city");
+    params.set("page", "1");
+    navigate(`/app/view-stores?${params.toString()}`);
+  }, [navigate]);
+  const handleStateFilterRemove = useCallback(() => {
+    setStateFilter([]);
+    const params = new URLSearchParams(window.location.search);
+    params.delete("stateFilter");
+    params.set("page", "1");
+    navigate(`/app/view-stores?${params.toString()}`);
+  }, [navigate]);
   const handleQueryValueRemove = useCallback(() => {
     // Clear any pending debounced navigation
     if (searchTimeoutRef.current) {
@@ -506,7 +1015,6 @@ export default function IndexTableWithViewsSearchFilterSorting() {
     navigate(`/app/view-stores?${params.toString()}`);
   }, [navigate]);
   const handleFiltersClearAll = useCallback(() => {
-    handleAccountStatusRemove();
     handleHasCoordinatesRemove();
     handleHasPhoneRemove();
     handleHasLinkRemove();
@@ -514,7 +1022,6 @@ export default function IndexTableWithViewsSearchFilterSorting() {
     handleTaggedWithRemove();
     handleStateFilterRemove();
   }, [
-    handleAccountStatusRemove,
     handleHasCoordinatesRemove,
     handleHasPhoneRemove,
     handleHasLinkRemove,
@@ -524,25 +1031,6 @@ export default function IndexTableWithViewsSearchFilterSorting() {
   ]);
 
   const filters = [
-    {
-      key: "accountStatus",
-      label: "Account status",
-      filter: (
-        <ChoiceList
-          title="Account status"
-          titleHidden
-          choices={[
-            { label: "Enabled", value: "enabled" },
-            { label: "Not invited", value: "not invited" },
-            { label: "Invited", value: "invited" },
-            { label: "Declined", value: "declined" },
-          ]}
-          selected={accountStatus || []}
-          onChange={handleAccountStatusChange}
-        />
-      ),
-      shortcut: true,
-    },
     {
       key: "taggedWith",
       label: "Tagged with",
@@ -625,14 +1113,6 @@ export default function IndexTableWithViewsSearchFilterSorting() {
   ];
 
   const appliedFilters = [];
-  if (accountStatus && !isEmpty(accountStatus)) {
-    const key = "accountStatus";
-    appliedFilters.push({
-      key,
-      label: disambiguateLabel(key, accountStatus),
-      onRemove: handleAccountStatusRemove,
-    });
-  }
   if (hasCoordinates) {
     const key = "hasCoordinates";
     appliedFilters.push({
@@ -679,14 +1159,89 @@ export default function IndexTableWithViewsSearchFilterSorting() {
     plural: "stores",
   };
 
-  const { selectedResources, allResourcesSelected, handleSelectionChange } =
+  const { selectedResources, allResourcesSelected, handleSelectionChange, clearSelection } =
     useIndexResourceState(paginatedStores);
+
+  // Clear selection after bulk delete
+  useEffect(() => {
+    if (actionData?.success && actionData?.deletedCount !== undefined && selectedResources.length > 0) {
+      // Clear selection after successful bulk delete
+      clearSelection();
+    }
+  }, [actionData?.success, actionData?.deletedCount, selectedResources.length, clearSelection]);
 
   // Clear selection when stores change (e.g., when navigating pages)
   useEffect(() => {
     // This will clear the selection when the stores array changes
     // The useIndexResourceState hook will handle the clearing automatically
   }, [paginatedStores]);
+
+  // Export selected stores - moved here after selectedResources is declared
+  const handleExportSelected = useCallback(async () => {
+    if (selectedResources.length === 0) {
+      shopify.toast.show("No stores selected", { isError: true });
+      return;
+    }
+    
+    // Build export URL with selected store IDs
+    const exportParams = new URLSearchParams();
+    exportParams.set("scope", "selected");
+    selectedResources.forEach((storeId) => {
+      exportParams.append("storeIds", storeId);
+    });
+    
+    try {
+      const response = await fetch(`/app/export-stores?${exportParams.toString()}`, {
+        method: "GET",
+        credentials: "include", // Include cookies for authentication
+      });
+      
+      if (!response.ok) {
+        // If we get redirected (302), it means authentication failed
+        if (response.redirected || response.status === 302) {
+          shopify.toast.show("Authentication failed. Please refresh the page.", { isError: true });
+          return;
+        }
+        throw new Error(`Export failed: ${response.status} ${response.statusText}`);
+      }
+      
+      // Get the CSV content
+      const blob = await response.blob();
+      
+      // Get filename from Content-Disposition header
+      const contentDisposition = response.headers.get("Content-Disposition");
+      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+      const filename = filenameMatch ? filenameMatch[1] : `selected-stores-${selectedResources.length}.csv`;
+      
+      // Trigger download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export error:", error);
+      shopify.toast.show(`Failed to export: ${error.message}`, { isError: true });
+    }
+  }, [selectedResources, shopify]);
+
+  // Export modal handler - moved here after all export handlers are defined
+  const handleExportFromModal = useCallback(({ exportScope }) => {
+    shopify.modal.hide("export-modal");
+    
+    if (exportScope === "all") {
+      handleExportAll();
+    } else if (exportScope === "filtered") {
+      handleExportFiltered();
+    } else if (exportScope === "current") {
+      handleExportCurrent();
+    } else if (exportScope === "selected") {
+      handleExportSelected();
+    }
+  }, [handleExportAll, handleExportFiltered, handleExportCurrent, handleExportSelected, shopify]);
 
   // Bulk delete functionality - moved here after selectedResources is declared
   const handleBulkDelete = useCallback(() => {
@@ -763,13 +1318,32 @@ export default function IndexTableWithViewsSearchFilterSorting() {
   }
 
   return (
-    <Page
-      title="Stores"
+    <>
+      {/* Save View Modal */}
+      <SaveViewModal
+        onClose={() => {
+          shopify.modal.hide("save-view-modal");
+          setSaveViewLoading(false);
+        }}
+        onSave={handleSaveView}
+        loading={saveViewLoading}
+      />
+
+      <Page
+        title="Stores"
       primaryAction={{
         content: "Add a store",
         onAction: () => navigate("/app/add-store"),
       }}
       secondaryActions={[
+        {
+          icon: SaveIcon,
+          content: "Save View",
+          accessibilityLabel: "Save current filters as a view",
+          onAction: () => {
+            shopify.modal.show("save-view-modal");
+          },
+        },
         {
           icon: GlobeIcon,
           content: "Distribution Map",
@@ -815,7 +1389,7 @@ export default function IndexTableWithViewsSearchFilterSorting() {
           }}
           tabs={tabs}
           selected={selected}
-          onSelect={setSelected}
+          onSelect={handleTabChange}
           canCreateNewView
           onCreateNewView={onCreateNewView}
           filters={filters}
@@ -824,28 +1398,45 @@ export default function IndexTableWithViewsSearchFilterSorting() {
           mode={mode}
           setMode={setMode}
         />
-        <IndexTable
-          condensed={breakpoints.smDown}
-          resourceName={resourceName}
-          itemCount={paginatedStores.length}
-          selectedItemsCount={
-            allResourcesSelected ? "All" : selectedResources.length
-          }
-          onSelectionChange={handleSelectionChange}
-          promotedBulkActions={promotedBulkActions}
-          headings={[
-            { title: "Name" },
-            { title: "Address" },
-            { title: "City" },
-            { title: "State" },
-            { title: "Country" },
-            { title: "Latitude" },
-            { title: "Longitude" },
-            { title: "Phone" },
-          ]}
-        >
-          {rowMarkup}
-        </IndexTable>
+        
+        {/* Loading overlay */}
+        {isNavigating && (
+          <div style={{
+            position: 'relative',
+            minHeight: '200px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Spinner accessibilityLabel="Loading stores..." size="large" />
+          </div>
+        )}
+        
+        {/* Show table only when not loading */}
+        {!isNavigating && (
+          <IndexTable
+            condensed={breakpoints.smDown}
+            resourceName={resourceName}
+            itemCount={paginatedStores.length}
+            selectedItemsCount={
+              allResourcesSelected ? "All" : selectedResources.length
+            }
+            onSelectionChange={handleSelectionChange}
+            promotedBulkActions={promotedBulkActions}
+            headings={[
+              { title: "Name" },
+              { title: "Address" },
+              { title: "City" },
+              { title: "State" },
+              { title: "Country" },
+              { title: "Latitude" },
+              { title: "Longitude" },
+              { title: "Phone" },
+            ]}
+          >
+            {rowMarkup}
+          </IndexTable>
+        )}
         <Divider />
         <div style={{ paddingTop: "10px" }}>
           <Pagination
@@ -878,15 +1469,15 @@ export default function IndexTableWithViewsSearchFilterSorting() {
 
       <ExportModal
         onClose={handleExportModalClose}
-        onExport={handleExportModalClose}
+        onExport={handleExportFromModal}
         exportCounts={{
           current: paginatedStores.length,
-          all: pagination.totalCount,
+          all: pagination.totalAllStores,
           selected: selectedResources.length,
-          filtered: paginatedStores.length,
+          filtered: pagination.totalCount,
         }}
         selectedCount={selectedResources.length}
-        filteredCount={paginatedStores.length}
+        filteredCount={pagination.totalCount}
         canExportSelected={true}
         canExportFiltered={true}
       />
@@ -897,7 +1488,8 @@ export default function IndexTableWithViewsSearchFilterSorting() {
         selectedCount={selectedResources.length}
         loading={deleteLoading}
       />
-    </Page>
+      </Page>
+    </>
   );
 
   function disambiguateLabel(key, value) {
@@ -916,8 +1508,6 @@ export default function IndexTableWithViewsSearchFilterSorting() {
           .join(", ");
       case "taggedWith":
         return `Tagged with ${value}`;
-      case "accountStatus":
-        return value.map((val) => `Customer ${val}`).join(", ");
       case "state":
         return `State: ${value.join(", ")}`;
       default:
