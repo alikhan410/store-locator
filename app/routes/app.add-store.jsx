@@ -105,6 +105,11 @@ export default function AddStore() {
   const [isClientState, setIsClientState] = useState(false);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [isAutocompleteLoaded, setIsAutocompleteLoaded] = useState(false);
+  const [dismissedBanners, setDismissedBanners] = useState({
+    cannotAdd: false,
+    approachingLimit: false,
+    slotsRemaining: false,
+  });
 
   const [formData, setFormData] = useState({
     name: "",
@@ -376,7 +381,13 @@ export default function AddStore() {
 
       {/* Plan Limit Warning */}
       {!limitCheck.canAdd && (
-        <s-banner heading="Cannot Add Store" tone="critical">
+        <s-banner 
+          heading="Cannot Add Store" 
+          tone="critical"
+          dismissible
+          hidden={dismissedBanners.cannotAdd}
+          onDismiss={() => setDismissedBanners(prev => ({ ...prev, cannotAdd: true }))}
+        >
           <s-paragraph>{limitCheck.error}</s-paragraph>
           <s-button
             slot="secondary-actions"
@@ -392,7 +403,13 @@ export default function AddStore() {
 
       {/* Near Limit Warning */}
       {limitCheck.canAdd && limitCheck.remaining <= 3 && (
-        <s-banner heading="Approaching Store Limit" tone="warning">
+        <s-banner 
+          heading="Approaching Store Limit" 
+          tone="warning"
+          dismissible
+          hidden={dismissedBanners.approachingLimit}
+          onDismiss={() => setDismissedBanners(prev => ({ ...prev, approachingLimit: true }))}
+        >
           <s-paragraph>
             You have {limitCheck.remaining} store slot
             {limitCheck.remaining === 1 ? "" : "s"} remaining. Consider
@@ -414,13 +431,15 @@ export default function AddStore() {
       {limitCheck.canAdd && limitCheck.remaining > 3 && (
         <>
         <s-box>
-          <s-banner heading="Store Slots Remaining" tone="success">
-            <s-text type="strong">
+          <s-banner 
+            heading="Store Slots Remaining" 
+            tone="info"
+            dismissible
+            hidden={dismissedBanners.slotsRemaining}
+            onDismiss={() => setDismissedBanners(prev => ({ ...prev, slotsRemaining: true }))}
+          >
+            <s-text>
               {`You have ${limitCheck.remaining} store slot${limitCheck.remaining === 1 ? "" : "s"} remaining out of ${limitCheck.limit}.`}
-            </s-text>
-            <s-text color="subdued" type="small">
-              Manage your locations efficiently. Upgrade your plan if you need
-              more slots.
             </s-text>
           </s-banner>
         </s-box>
