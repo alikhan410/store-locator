@@ -34,18 +34,6 @@ export function ExportModal({
         ? `${exportCounts.current} products on this page`
         : undefined,
     },
-    {
-      label: `All products`,
-      value: "all",
-      helpText: exportCounts.all ? `${exportCounts.all} total` : undefined,
-    },
-    canExportSelected && selectedCount > 0
-      ? {
-          label: `Selected`,
-          value: "selected",
-          helpText: `${selectedCount} selected`,
-        }
-      : null,
     canExportFiltered && filteredCount > 0
       ? {
           label: `Filtered`,
@@ -53,6 +41,18 @@ export function ExportModal({
           helpText: `${filteredCount} matching your search`,
         }
       : null,
+    canExportSelected && selectedCount > 0
+      ? {
+          label: `Selected`,
+          value: "selected",
+          helpText: `${selectedCount} selected`,
+        }
+      : null,
+    {
+      label: `All products`,
+      value: "all",
+      helpText: exportCounts.all ? `${exportCounts.all} total` : undefined,
+    },
   ].filter(Boolean);
 
   const formatOptions = [
@@ -67,7 +67,7 @@ export function ExportModal({
   ];
 
   return (
-    <Modal id="export-modal" variant="max" onClose={onClose} large>
+    <Modal id="export-modal" onClose={onClose} variant="large">
       <TitleBar title="Export products" onClose={onClose} />
       <Box padding="400">
         <Text as="p" variant="bodyMd" color="subdued">
@@ -128,7 +128,7 @@ export function BulkDeleteModal({
   loading = false,
 }) {
   return (
-    <Modal id="bulk-delete-modal" onClose={onClose} large>
+    <Modal id="bulk-delete-modal" onClose={onClose} variant="large">
       <TitleBar title="Delete Stores" onClose={onClose} />
       <Box padding="400">
         <BlockStack gap="400">
@@ -170,7 +170,7 @@ export function DeleteStoreModal({
   loading = false,
 }) {
   return (
-    <Modal id="delete-store-modal" onClose={onClose} large>
+    <Modal id="delete-store-modal" onClose={onClose} variant="large">
       <TitleBar title="Delete Store" onClose={onClose} />
       <Box padding="400">
         <BlockStack gap="400">
@@ -194,6 +194,57 @@ export function DeleteStoreModal({
               Delete Store
             </Button>
             <Button onClick={onClose} variant="secondary">
+              Cancel
+            </Button>
+          </InlineStack>
+        </Box>
+      </Box>
+    </Modal>
+  );
+}
+
+// Save View Modal Component
+export function SaveViewModal({
+  onClose,
+  onSave,
+  loading = false,
+}) {
+  const [viewName, setViewName] = useState("");
+
+  const handleSave = () => {
+    if (viewName.trim()) {
+      onSave(viewName.trim());
+    }
+  };
+
+  return (
+    <Modal id="save-view-modal" onClose={onClose} variant="small" >
+      <TitleBar title="Save Search" onClose={onClose} />
+      <Box padding="400">
+        <BlockStack gap="400">
+          <Text variant="bodyMd" tone="subdued">
+            Save your current search and filters to quickly access them later. Your team members will also have access to this saved view.
+          </Text>
+          <TextField
+            label="Search name"
+            value={viewName}
+            onChange={setViewName}
+            placeholder="e.g., California stores, Stores needing geocoding"
+            autoComplete="off"
+            autoFocus
+          />
+        </BlockStack>
+        <Box paddingBlockStart="400">
+          <InlineStack gap="400">
+            <Button
+              variant="primary"
+              onClick={handleSave}
+              loading={loading}
+              disabled={!viewName.trim()}
+            >
+              Save search
+            </Button>
+            <Button onClick={onClose} variant="secondary" disabled={loading}>
               Cancel
             </Button>
           </InlineStack>
@@ -227,7 +278,7 @@ export function ApproveRejectSubmissionModal({
     <Modal
       id="approve-reject-submission-modal"
       onClose={onClose}
-      large
+      variant="large" 
     >
       <TitleBar title="Review Store Submission" onClose={onClose} />
       <Box padding="400">
