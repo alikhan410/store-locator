@@ -5,6 +5,7 @@
 <link href="{{ 'responsive.css' | asset_url }}" rel="stylesheet">
 
 <script src="{{ 'haversineDistance.js' | asset_url }}" defer></script>
+<script src="{{ 'analytics-tracking.js' | asset_url }}" defer></script>
 <script
   src="https://maps.googleapis.com/maps/api/js?key={{ block.settings.GOOGLE_PUBLIC_API_KEY }}&libraries=places&callback=initMap"
   async
@@ -102,6 +103,9 @@
   let map;
   let markers = [];
   let userCoords;
+  
+  // Analytics: Store current stores for reference
+  let currentStores = [];
 
   const formatName = (name) => name.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
   const toTitleCase = (str) => {
@@ -113,9 +117,14 @@
       .join(' ');
   };
 
-  function updateMapAndList(userCoords, stores, showBranding = false) {
-    console.log(stores);
+  // Analytics tracking functions are now in analytics-tracking.js
+  // Access via window.StoreLocatorAnalytics
+
+  function updateMapAndList(userCoords, stores) {
     resultsEl.innerHTML = '';
+    
+    // Store current stores data for analytics
+    currentStores = stores;
 
     if (markers.length) {
       markers.forEach((m) => m.setMap(null));
@@ -129,7 +138,7 @@
       return;
     }
 
-    stores.forEach((store) => {
+    stores.forEach((store, index) => {
       const marker = new google.maps.Marker({
         position: { lat: store.lat, lng: store.lng },
         map,
@@ -143,33 +152,53 @@
         content: `<b>${store.name}</b><br>${store.address}<br>${convertedDistance} ${window.radiusUnit}`,
       });
 
+      // Analytics: Track map marker click
       marker.addListener('click', () => {
         infoWindow.open(map, marker);
+        if (window.StoreLocatorAnalytics) {
+          window.StoreLocatorAnalytics.trackStoreView(store, 'map_marker', index + 1);
+        }
       });
 
       markers.push(marker);
       boundsObj.extend(marker.getPosition());
 
+      // Create unique ID for store result element
+      const storeResultId = `store-result-${index}`;
+
       resultsEl.innerHTML += `
-        <div class="store-result" data-lat="${store.lat}" data-lng="${store.lng}">
+        <div class="store-result" id="${storeResultId}" data-lat="${store.lat}" data-lng="${store.lng}" data-store-index="${index}">
           <div class="store-name">${formatName(store.name)}</div>
           <div class="store-address">
             ${toTitleCase(store.address)}${store.address2 ? ', ' + toTitleCase(store.address2) : ''}, 
             ${toTitleCase(store.city)}, ${store.state.toUpperCase()} ${store.zip}
           </div>
-          ${store.phone ? `<div class="store-phone">${store.phone}</div>` : ''}
+          ${store.phone ? `<div class="store-phone"><a href="tel:${store.phone}" class="store-phone-link" data-store-index="${index}">${store.phone}</a></div>` : ''}
           ${
             store.link
-              ? `<div class="store-link"><a href="${store.link}" target="_blank" rel="noopener noreferrer">Store Website</a></div>`
+              ? `<div class="store-link"><a href="${store.link}" class="store-website-link" data-store-index="${index}" target="_blank" rel="noopener noreferrer">Store Website</a></div>`
               : ''
           }
           <div class="store-distance">${convertedDistance} ${window.radiusUnit} away</div>
         </div>
       `;
     });
+    
+    // Analytics: Add event listeners for store interactions
     const storeEls = document.querySelectorAll('.store-result');
     storeEls.forEach((storeEl) => {
-      storeEl.addEventListener('click', () => {
+      const storeIndex = parseInt(storeEl.dataset.storeIndex);
+      const store = stores[storeIndex];
+      
+      if (!store) return;
+
+      // Track store list click
+      storeEl.addEventListener('click', (e) => {
+        // Don't track if clicking on phone or website links (they have their own tracking)
+        if (e.target.closest('.store-phone-link, .store-website-link')) {
+          return;
+        }
+
         const lat = parseFloat(storeEl.dataset.lat);
         const lng = parseFloat(storeEl.dataset.lng);
 
@@ -181,29 +210,15 @@
         if (window.matchMedia('(max-width: 768px)').matches) {
           document.getElementById('store-map').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+
+        // Track store view from list
+        if (window.StoreLocatorAnalytics) {
+          window.StoreLocatorAnalytics.trackStoreView(store, 'list', storeIndex + 1);
+        }
       });
     });
-    map.fitBounds(boundsObj);
 
-    // Add branding footer for Free Plan
-    if (showBranding) {
-      const brandingFooter = document.createElement('div');
-      brandingFooter.className = 'store-locator-branding';
-      brandingFooter.innerHTML = `
-        <div style="
-          text-align: center;
-          padding: 10px;
-          margin-top: 20px;
-          border-top: 1px solid #e0e0e0;
-          font-size: 12px;
-          color: #666;
-          background: #f9f9f9;
-        ">
-          Powered by <a href="https://storetrail.app" target="_blank" style="color: #007cba; text-decoration: none;">StoreTrail</a>
-        </div>
-      `;
-      resultsEl.appendChild(brandingFooter);
-    }
+    map.fitBounds(boundsObj);
   }
 
   function initMap() {
@@ -228,6 +243,26 @@
     map = new google.maps.Map(mapEl, {
       center: { lat: 37.0902, lng: -95.7129 },
       zoom: 4,
+    });
+
+    // Analytics: Track phone and website clicks using event delegation (added once)
+    resultsEl.addEventListener('click', (e) => {
+      if (!window.StoreLocatorAnalytics) return;
+
+      const storeIndex = e.target.closest('[data-store-index]')?.getAttribute('data-store-index');
+      if (storeIndex === null || storeIndex === undefined) return;
+
+      const store = currentStores[parseInt(storeIndex)];
+      if (!store) return;
+
+      // Track phone clicks
+      if (e.target.classList.contains('store-phone-link')) {
+        window.StoreLocatorAnalytics.trackStoreContact(store, 'phone_click');
+      }
+      // Track website clicks
+      else if (e.target.classList.contains('store-website-link')) {
+        window.StoreLocatorAnalytics.trackStoreContact(store, 'website_click');
+      }
     });
 
     const autocomplete = new google.maps.places.Autocomplete(locationInput, {
@@ -259,7 +294,12 @@
       )
         .then((res) => res.json())
         .then((data) => {
-          updateMapAndList(userCoords, data.stores, data.showBranding);
+          updateMapAndList(userCoords, data.stores);
+          // Track the search from autocomplete
+          const query = locationInput.value.trim();
+          if (window.StoreLocatorAnalytics) {
+            window.StoreLocatorAnalytics.trackSearch(query, data.stores ? data.stores.length : 0, radiusValue);
+          }
         });
     });
 
@@ -286,7 +326,11 @@
           )
             .then((res) => res.json())
             .then((data) => {
-              updateMapAndList(userCoords, data.stores, data.showBranding);
+              updateMapAndList(userCoords, data.stores);
+              // Track the search from "Use My Location"
+              if (window.StoreLocatorAnalytics) {
+                window.StoreLocatorAnalytics.trackSearch('Current Location', data.stores ? data.stores.length : 0, radiusValue);
+              }
             });
         },
         (error) => {
@@ -314,27 +358,56 @@
         </div>
       `;
 
+      console.log('Search button clicked, query:', query);
       fetch(`/apps/storetrail/geocode?address=${encodeURIComponent(query)}`)
-        .then((res) => res.json())
+        .then((res) => {
+          console.log('Geocode response status:', res.status);
+          return res.json();
+        })
         .then((geo) => {
+          console.log('Geocode result:', geo);
           if (!geo.lat || !geo.lng) {
             resultsEl.innerHTML = '<p>Location not found. Try another search.</p>';
             return;
           }
 
           userCoords = { lat: geo.lat, lng: geo.lng };
+          console.log('Fetching locations for:', userCoords);
 
           fetch(
             `/apps/storetrail/locations?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radiusKm}&shop={{ shop.domain }}`
           )
-            .then((res) => res.json())
+            .then((res) => {
+              console.log('Locations response status:', res.status);
+              return res.json();
+            })
             .then((data) => {
-              updateMapAndList(userCoords, data.stores, data.showBranding);
+              console.log('Search results received:', data);
+              updateMapAndList(userCoords, data.stores);
+              // Track the search
+              if (window.StoreLocatorAnalytics) {
+                window.StoreLocatorAnalytics.trackSearch(query, data.stores ? data.stores.length : 0, radiusValue);
+              }
+            })
+            .catch((error) => {
+              console.error('Error fetching locations:', error);
             });
         })
-        .catch(() => {
-          resultsEl.innerHTML = '<p>Something went wrong. Try again later.</p>';
-        });
+            .catch((error) => {
+              console.error('Error in geocode fetch:', error);
+              resultsEl.innerHTML = '<p>Something went wrong. Try again later.</p>';
+            });
+    });
+
+    // Analytics: Track radius changes (only if there's an active search)
+    radiusSelect.addEventListener('change', () => {
+      if (window.StoreLocatorAnalytics) {
+        const newRadius = parseInt(radiusSelect.value, 10);
+        const currentRadius = window.StoreLocatorAnalytics.getCurrentRadius();
+        if (currentRadius !== null && currentRadius !== newRadius) {
+          window.StoreLocatorAnalytics.trackRadiusChange(currentRadius, newRadius);
+        }
+      }
     });
   }
 </script>
