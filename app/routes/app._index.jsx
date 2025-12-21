@@ -55,6 +55,97 @@ export const loader = async ({ request }) => {
     ? Math.max(...topStates.map(s => s.count), 1) 
     : 1;
 
+  // Get analytics data (last 30 days)
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  
+  // Total searches
+  const totalSearches = await prisma.storeAnalyticsEvent.count({
+    where: {
+      shop: session.shop,
+      eventType: 'search',
+      timestamp: { gte: thirtyDaysAgo }
+    }
+  });
+
+  // Unique sessions
+  const uniqueSessions = await prisma.storeAnalyticsEvent.findMany({
+    where: {
+      shop: session.shop,
+      timestamp: { gte: thirtyDaysAgo }
+    },
+    distinct: ['sessionId'],
+    select: { sessionId: true }
+  });
+
+  // Top search queries (last 30 days)
+  const topSearchQueries = await prisma.storeAnalyticsEvent.findMany({
+    where: {
+      shop: session.shop,
+      eventType: 'search',
+      searchQuery: { not: null },
+      timestamp: { gte: thirtyDaysAgo }
+    },
+    select: {
+      searchQuery: true
+    },
+    take: 100 // Get more to aggregate
+  });
+
+  // Aggregate search queries
+  const queryCounts = topSearchQueries.reduce((acc, event) => {
+    const query = event.searchQuery;
+    if (query) {
+      acc[query] = (acc[query] || 0) + 1;
+    }
+    return acc;
+  }, {});
+
+  const topQueries = Object.entries(queryCounts)
+    .map(([query, count]) => ({ query, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  // Most viewed stores (last 30 days)
+  const storeViews = await prisma.storeAnalyticsEvent.findMany({
+    where: {
+      shop: session.shop,
+      eventType: 'store_view',
+      storeId: { not: null },
+      timestamp: { gte: thirtyDaysAgo }
+    },
+    select: {
+      storeId: true,
+      storeName: true
+    },
+    take: 500 // Get more to aggregate
+  });
+
+  // Aggregate store views
+  const storeViewCounts = storeViews.reduce((acc, event) => {
+    const storeId = event.storeId;
+    if (storeId) {
+      if (!acc[storeId]) {
+        acc[storeId] = { name: event.storeName || 'Unknown', count: 0 };
+      }
+      acc[storeId].count++;
+    }
+    return acc;
+  }, {});
+
+  const topViewedStores = Object.entries(storeViewCounts)
+    .map(([storeId, data]) => ({ storeId, name: data.name, views: data.count }))
+    .sort((a, b) => b.views - a.views)
+    .slice(0, 5);
+
+  // Total store contacts (phone + website clicks)
+  const totalContacts = await prisma.storeAnalyticsEvent.count({
+    where: {
+      shop: session.shop,
+      eventType: 'store_contact',
+      timestamp: { gte: thirtyDaysAgo }
+    }
+  });
+
   return {
     stores: stores.slice(0, 10), // Recent 10 for activity feed
     metrics: {
@@ -74,12 +165,19 @@ export const loader = async ({ request }) => {
       topStates,
       maxStateCount,
     },
+    analytics: {
+      totalSearches,
+      uniqueSessions: uniqueSessions.length,
+      topQueries,
+      topViewedStores,
+      totalContacts,
+    },
     contactUrl: process.env.CONTACT_URL || "https://storetrail.app/support",
   };
 };
 
 export default function Index() {
-  const { stores, metrics, stateDistribution, contactUrl } = useLoaderData();
+  const { stores, metrics, stateDistribution, analytics, contactUrl } = useLoaderData();
   const navigate = useNavigate();
   const shopify = useAppBridge();
   
@@ -490,6 +588,126 @@ export default function Index() {
                       accessibilityLabel="Dismiss dealer submission form section"
                     />
                   </s-grid>
+                </s-box>
+              </s-section>
+            )}
+
+            {/* Store Locator Analytics Section */}
+            {metrics.totalStores > 0 && (
+              <s-section>
+                <s-box padding="base" background="base" border="base" borderRadius="base">
+                  {analytics.totalSearches > 0 ? (
+                    <s-grid gap="base">
+                      <s-grid gridTemplateColumns="1fr auto" alignItems="center" gap="base">
+                        <s-heading>Store Locator Analytics</s-heading>
+                        <s-badge tone="info">Last 30 days</s-badge>
+                      </s-grid>
+                      <s-paragraph color="subdued">
+                        Track how customers are using your store locator to find your locations.
+                      </s-paragraph>
+
+                      {/* Analytics Metrics Cards */}
+                      <s-grid gridTemplateColumns="repeat(auto-fit, minmax(200px, 1fr))" gap="base">
+                        {/* Total Searches */}
+                        <s-box background="subdued" borderRadius="base" padding="base">
+                          <s-stack direction="block" gap="small-200">
+                            <s-text color="subdued" fontWeight="medium">Total Searches</s-text>
+                            <s-text variant="heading2xl">{analytics.totalSearches}</s-text>
+                            <s-text color="subdued" fontSize="small">
+                              {analytics.uniqueSessions} unique {analytics.uniqueSessions === 1 ? 'session' : 'sessions'}
+                            </s-text>
+                          </s-stack>
+                        </s-box>
+
+                        {/* Store Contacts */}
+                        <s-box background="subdued" borderRadius="base" padding="base">
+                          <s-stack direction="block" gap="small-200">
+                            <s-text color="subdued" fontWeight="medium">Store Contacts</s-text>
+                            <s-text variant="heading2xl">{analytics.totalContacts}</s-text>
+                            <s-text color="subdued" fontSize="small">
+                              Phone & website clicks
+                            </s-text>
+                          </s-stack>
+                        </s-box>
+                      </s-grid>
+
+                      {/* Top Search Queries */}
+                      {analytics.topQueries.length > 0 && (
+                        <s-box>
+                          <s-heading fontSize="base" paddingBlockEnd="small-200">
+                            Top Search Queries
+                          </s-heading>
+                          <s-stack direction="block" gap="small-200">
+                            {analytics.topQueries.map((item, idx) => (
+                              <s-box
+                                key={idx}
+                                padding="small-300"
+                                borderRadius="base"
+                                background="subdued"
+                              >
+                                <s-grid gridTemplateColumns="1fr auto" alignItems="center" gap="base">
+                                  <s-text fontWeight="medium">{item.query}</s-text>
+                                  <s-badge tone="info">{item.count} {item.count === 1 ? 'search' : 'searches'}</s-badge>
+                                </s-grid>
+                              </s-box>
+                            ))}
+                          </s-stack>
+                        </s-box>
+                      )}
+
+                      {/* Most Viewed Stores */}
+                      {analytics.topViewedStores.length > 0 && (
+                        <s-box>
+                          <s-heading fontSize="base" paddingBlockEnd="small-200">
+                            Most Viewed Stores
+                          </s-heading>
+                          <s-stack direction="block" gap="small-200">
+                            {analytics.topViewedStores.map((store, idx) => (
+                              <s-box
+                                key={store.storeId}
+                                padding="small-300"
+                                borderRadius="base"
+                                background="subdued"
+                              >
+                                <s-grid gridTemplateColumns="1fr auto" alignItems="center" gap="base">
+                                  <s-text fontWeight="medium">{store.name || 'Unknown Store'}</s-text>
+                                  <s-badge tone="success">{store.views} {store.views === 1 ? 'view' : 'views'}</s-badge>
+                                </s-grid>
+                              </s-box>
+                            ))}
+                          </s-stack>
+                        </s-box>
+                      )}
+                    </s-grid>
+                  ) : (
+                    /* Empty State - following Shopify pattern */
+                    <s-grid gap="base" justifyItems="center" paddingBlock="large-400">
+                      <s-box maxInlineSize="200px" maxBlockSize="200px">
+                        <s-image
+                          aspectRatio="1/0.5"
+                          src="https://cdn.shopify.com/static/images/polaris/patterns/callout.png"
+                          alt="Analytics empty state illustration"
+                        />
+                      </s-box>
+                      <s-grid justifyItems="center" maxInlineSize="450px" gap="base">
+                        <s-stack alignItems="center">
+                          <s-heading>No analytics data yet</s-heading>
+                          <s-paragraph>
+                            Analytics will appear once customers start using your store locator to find your locations.
+                          </s-paragraph>
+                        </s-stack>
+                        <s-button-group>
+                          <s-button
+                            slot="primary-action"
+                            aria-label="View store locator settings"
+                            onClick={() => navigate("/app/view-stores")}
+                          >
+                            Manage Stores
+                          </s-button>
+                        </s-button-group>
+                      </s-grid>
+                    </s-grid>
+                  )}
                 </s-box>
               </s-section>
             )}
