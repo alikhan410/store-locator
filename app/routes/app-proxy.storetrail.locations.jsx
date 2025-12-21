@@ -4,6 +4,14 @@ import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
   console.log("proxy is running");
+  
+  // Authenticate the app proxy request
+  try {
+    await authenticate.public.appProxy(request);
+  } catch (authError) {
+    return new Response("Authentication failed", { status: 401 });
+  }
+  
   try {
     const url = new URL(request.url);
     const lat = parseFloat(url.searchParams.get("lat") || "0");
@@ -30,19 +38,6 @@ export const loader = async ({ request }) => {
     if (radiusKm > maxRadiusKm) {
       console.error("Radius too large:", radiusKm, "km");
       return new Response(`Maximum radius is ${maxRadiusKm} km`, { status: 400 });
-    }
-
-    // Get subscription information for branding
-    let subscription = null;
-    let planName = 'free';
-    
-    try {
-      const { billing } = await authenticate.admin(request);
-      const { appSubscriptions } = await billing.check();
-      subscription = appSubscriptions?.[0];
-      planName = subscription?.name || 'free';
-    } catch (error) {
-      console.log("Could not get subscription info, defaulting to free plan");
     }
 
     let nearbyCandidates;
@@ -93,9 +88,7 @@ export const loader = async ({ request }) => {
     console.log("Stores:", stores.map(s => ({ name: s.name, city: s.city, state: s.state, distance: s.distance })));
 
     return { 
-      stores,
-      plan: planName,
-      showBranding: planName === 'free' || planName === 'Free Plan'
+      stores
     };
   } catch (error) {
     console.error("Failed to load stores", error);
