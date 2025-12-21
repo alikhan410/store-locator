@@ -32,43 +32,26 @@ export default function App() {
   return (
     <AppProvider isEmbeddedApp apiKey={apiKey}>
       <NavMenu>
-        <Link to="/app" rel="home" aria-label="Store Locator Home">
+        <Link to="/app" rel="home">
           Store Locator
         </Link>
-        <Link to="/app/add-store" aria-label="Add a new store location">
+        <Link to="/app/add-store">
           Add a store
         </Link>
-        <Link to="/app/view-stores" aria-label="View all store locations">
+        <Link to="/app/view-stores">
           View all stores
         </Link>
-        <Link to="/app/submissions" aria-label="View all store submissions">
+        <Link to="/app/submissions">
           Submissions
         </Link>
-        <Link to="/app/choropleth" aria-label="View store distribution by state">
+        <Link to="/app/choropleth">
           Distribution Map
         </Link>
-        <Link to="/app/billing" aria-label="Billing and subscription settings">
+        <Link to="/app/billing">
           Billing
         </Link>
-        <Link to="/app/support" aria-label="Support and help resources">
+        <Link to="/app/support">
           Support
-        </Link>
-        <Link to="/app/gdpr" aria-label="Data privacy and GDPR settings">
-          Privacy & GDPR
-        </Link>
-        <Link
-          to="/privacy-policy"
-          target="_blank"
-          aria-label="Privacy Policy (opens in new window)"
-        >
-          Privacy Policy
-        </Link>
-        <Link
-          to="/terms-of-service"
-          target="_blank"
-          aria-label="Terms of Service (opens in new window)"
-        >
-          Terms of Service
         </Link>
       </NavMenu>
       <main id="main-content" role="main" aria-label="Main content">
