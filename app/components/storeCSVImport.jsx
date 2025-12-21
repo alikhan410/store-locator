@@ -1,20 +1,4 @@
-import {
-  DropZone,
-  BlockStack,
-  Thumbnail,
-  Text,
-  Select,
-  Button,
-  InlineStack,
-  Card,
-  DataTable,
-  Banner,
-  Spinner,
-  TextField,
-  List,
-} from "@shopify/polaris";
 import { Modal, TitleBar } from "@shopify/app-bridge-react";
-import { NoteIcon } from "@shopify/polaris-icons";
 import { useState, useCallback, useMemo } from "react";
 import Papa from "papaparse";
 
@@ -181,20 +165,43 @@ export default function StoreCSVImport({ onImport, onClose }) {
   const handleDropZoneDrop = useCallback(
     (_dropFiles, acceptedFiles) => {
       const csvFile = acceptedFiles[0];
+      
+      // Validate that the file is a CSV file by extension
+      if (csvFile) {
+        const fileName = csvFile.name.toLowerCase();
+        const isValidCSV = fileName.endsWith('.csv');
+        
+        if (!isValidCSV) {
+          setErrors(['Please upload a valid CSV file. The file must have a .csv extension.']);
+          setFile(null);
+          setParsedData([]);
+          setPreviewData([]);
+          setCsvHeaders([]);
+          return;
+        }
+      }
+      
       setFile(csvFile);
       setErrors([]);
       setParsedData([]);
       setPreviewData([]);
 
-      if (csvFile && csvFile.type === "text/csv") {
+      if (csvFile) {
         Papa.parse(csvFile, {
           header: true,
           skipEmptyLines: true,
           complete: (results) => {
             if (results.errors.length > 0) {
-              setErrors(
-                results.errors.map((err) => `Row ${err.row}: ${err.message}`),
-              );
+              // Deduplicate errors by row number and message to avoid duplicates
+              const errorMap = new Map();
+              results.errors.forEach((err) => {
+                const errorKey = `${err.row || 'unknown'}-${err.message}`;
+                if (!errorMap.has(errorKey)) {
+                  errorMap.set(errorKey, `Row ${err.row || 'unknown'}: ${err.message}`);
+                }
+              });
+              const uniqueErrors = Array.from(errorMap.values());
+              setErrors(uniqueErrors);
               return;
             }
 
@@ -320,20 +327,6 @@ export default function StoreCSVImport({ onImport, onClose }) {
     }
   }, [parsedData, fieldMappings, validateMappings, onImport]);
 
-  const fileUpload = !file && (
-    <DropZone.FileUpload actionHint="Upload CSV file" />
-  );
-  const uploadedFile = file && (
-    <BlockStack>
-      <Thumbnail size="small" alt={file.name} source={NoteIcon} />
-      <div>
-        {file.name}
-        <Text variant="bodySm" as="p">
-          {file.size} bytes
-        </Text>
-      </div>
-    </BlockStack>
-  );
 
   const mappingOptions = useMemo(() => {
     return [
@@ -356,168 +349,211 @@ export default function StoreCSVImport({ onImport, onClose }) {
     });
   }, [previewData, fieldMappings]);
 
+  // Generate and download sample CSV
+  const downloadSampleCSV = useCallback(() => {
+    const headers = EXPECTED_FIELDS.map((field) => field.label);
+    const sampleRow = EXPECTED_FIELDS.map((field) => {
+      switch (field.key) {
+        case "name":
+          return "Sample Store Name";
+        case "address":
+          return "123 Main Street";
+        case "address2":
+          return "Suite 100";
+        case "city":
+          return "San Francisco";
+        case "state":
+          return "CA";
+        case "zip":
+          return "94102";
+        case "country":
+          return "United States";
+        case "phone":
+          return "(555) 123-4567";
+        case "link":
+          return "https://example.com";
+        case "lat":
+          return "37.7749";
+        case "lng":
+          return "-122.4194";
+        default:
+          return "";
+      }
+    });
+
+    const csvContent = [
+      headers.join(","),
+      sampleRow.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "store-import-template.csv";
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }, []);
+
   // Use a single close handler for all close actions
   const handleClose = () => {
     if (onClose) onClose();
   };
 
   return (
-    <Modal id="import-csv-modal" onClose={handleClose} large>
+    <Modal id="import-csv-modal" onClose={handleClose} variant="base">
       <TitleBar title="Import Stores from CSV" onClose={handleClose} />
-      <BlockStack gap="400" padding="400">
-        {/* File Upload */}
-        <Card>
-          <BlockStack gap="300">
-            <Text variant="headingMd" as="h3">
-              Upload CSV File
-            </Text>
-            <DropZone
-              accept=".csv"
-              allowMultiple={false}
-              onDrop={handleDropZoneDrop}
-            >
-              {uploadedFile}
-              {fileUpload}
-            </DropZone>
-          </BlockStack>
-        </Card>
-
-        {/* Error Display */}
-        {errors.length > 0 && (
-          <Banner title="Encountered errors while importing" tone="critical">
-            <BlockStack gap="200">
-              {errors.map((error, index) => (
-                <Text key={index} variant="bodyMd">
-                  {error}
-                </Text>
-              ))}
-            </BlockStack>
-          </Banner>
-        )}
-
-        {/* Field Mapping */}
-        {csvHeaders.length > 0 && (
-          <Card>
-            <BlockStack gap="400">
-              <Text variant="headingMd" as="h3">
-                Map CSV Fields
-              </Text>
-              <Text variant="bodyMd" as="p">
-                Map your CSV columns to the expected store fields. Required
-                fields are marked with an asterisk (*). The system tries to
-                auto-map common column names, but you can adjust the mappings
-                below.
-              </Text>
-              <Banner status="info">
-                <Text variant="bodyMd" as="p">
-                  <strong>Tip:</strong> Don't worry about column order! The
-                  system maps by column names, not positions. Common variations
-                  like "Store Name", "Business Name", "Company" will be
-                  auto-detected.
-                </Text>
-              </Banner>
-              <BlockStack gap="300">
-                {EXPECTED_FIELDS.map((field) => (
-                  <InlineStack key={field.key} align="space-between" gap="400">
-                    <InlineStack gap="200" align="center">
-                      <Text variant="bodyMd" as="span">
-                        {field.label}{" "}
-                        {field.required && (
-                          <Text variant="bodyMd" as="span" color="critical">
-                            *
-                          </Text>
-                        )}
-                      </Text>
-                      {autoMappedFields.has(field.key) &&
-                        fieldMappings[field.key] && (
-                          <Text variant="bodySm" as="span" color="success">
-                            ✓ Auto-mapped
-                          </Text>
-                        )}
-                    </InlineStack>
-                    <div style={{ minWidth: "200px" }}>
-                      <Select
-                        label=""
-                        labelHidden
-                        options={mappingOptions}
-                        value={fieldMappings[field.key] || ""}
-                        onChange={(value) =>
-                          handleFieldMappingChange(field.key, value)
-                        }
-                      />
-                    </div>
-                  </InlineStack>
-                ))}
-              </BlockStack>
-            </BlockStack>
-          </Card>
-        )}
-
-        {/* Data Preview */}
-        {previewData.length > 0 && (
-          <Card>
-            <BlockStack gap="300">
-              <Text variant="headingMd" as="h3">
-                Data Preview
-              </Text>
-              <Text variant="bodyMd" as="p">
-                Preview of how your data will be imported (showing first 5
-                rows):
-              </Text>
-              <DataTable
-                columnContentTypes={EXPECTED_FIELDS.map(() => "text")}
-                headings={EXPECTED_FIELDS.map((field) => field.label)}
-                rows={previewRows}
-              />
-              <Text variant="bodySm" as="p" color="subdued">
-                Total rows to import: {parsedData.length}
-              </Text>
-            </BlockStack>
-          </Card>
-        )}
-
-        {/* Processing State */}
-        {isProcessing && (
-          <Banner status="info">
-            <InlineStack gap="200" align="center">
-              <Spinner size="small" />
-              <Text variant="bodyMd">Processing import...</Text>
-            </InlineStack>
-          </Banner>
-        )}
-
-        {/* Import Results */}
-        {importResults && (
-          <Card>
-            <BlockStack gap="300">
-              <Text variant="headingMd" as="h3">
-                Import Results
-              </Text>
-              <Banner status={importResults.partial ? "warning" : "success"}>
-                <BlockStack gap="200">
-                  <Text variant="bodyMd">
-                    <strong>Successfully imported:</strong>{" "}
-                    {importResults.imported} stores
-                  </Text>
-                  {importResults.skipped > 0 && (
-                    <Text variant="bodyMd">
-                      <strong>Skipped due to errors:</strong>{" "}
-                      {importResults.skipped} stores
-                    </Text>
-                  )}
-                </BlockStack>
-              </Banner>
-              {importResults.errors && importResults.errors.length > 0 && (
-                <Button
-                  onClick={() => setShowErrorReport(true)}
+      <s-box padding="base">
+        <s-stack direction="block" gap="base">
+          {/* File Upload */}
+          <s-box background="base" border="base" borderRadius="base" padding="base">
+            <s-stack direction="block" gap="small-300">
+              <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+                <s-text>
+                  <strong>Upload CSV file</strong>
+                </s-text>
+                <s-button
                   variant="secondary"
+                  onClick={downloadSampleCSV}
                 >
-                  View Error Report ({importResults.errors.length} rows)
-                </Button>
-              )}
-            </BlockStack>
-          </Card>
-        )}
+                  Download sample CSV
+                </s-button>
+              </s-stack>
+              <s-paragraph color="subdued">
+                Use the sample CSV template to ensure your file has the correct column names. 
+                The system will automatically map columns based on their names.
+              </s-paragraph>
+              <div style={{ marginTop: "16px" }}>
+                <s-drop-zone
+                  accessibilityLabel="Upload a CSV file to import stores"
+                  accept=".csv"
+                  onChange={(event) => {
+                    const dropZone = event.currentTarget;
+                    if (dropZone.files && dropZone.files.length > 0) {
+                      const csvFile = dropZone.files[0];
+                      handleDropZoneDrop([], [csvFile], []);
+                    }
+                  }}
+                  onDropRejected={() => {
+                    setErrors(['Please upload a valid CSV file. The file must have a .csv extension.']);
+                  }}
+                />
+              </div>
+            </s-stack>
+          </s-box>
+
+          {/* Error Display */}
+          {errors.length > 0 && (
+            <s-banner heading="Encountered errors while importing" tone="critical">
+              <s-stack direction="block" gap="small-200">
+                {errors.map((error, index) => (
+                  <s-text key={index}>{error}</s-text>
+                ))}
+              </s-stack>
+            </s-banner>
+          )}
+
+
+          {/* Data Preview */}
+          {previewData.length > 0 && (
+            <s-box background="base" border="base" borderRadius="base" padding="base">
+              <s-stack direction="block" gap="small-300">
+                <s-heading>Data Preview</s-heading>
+                <s-paragraph>
+                  Preview of how your data will be imported (showing first 5
+                  rows):
+                </s-paragraph>
+                <div 
+                  style={{ 
+                    overflowX: "auto",
+                    marginLeft: "-16px",
+                    marginRight: "-16px",
+                    paddingLeft: "16px",
+                    paddingRight: "16px"
+                  }}
+                >
+                  <div style={{ width: "max-content", minWidth: "100%" }}>
+                    <style>{`
+                      .table-scroll-wrapper s-table-cell {
+                        white-space: nowrap;
+                      }
+                    `}</style>
+                    <div className="table-scroll-wrapper">
+                      <s-table variant="table">
+                        <s-table-header-row>
+                          {EXPECTED_FIELDS.map((field, index) => (
+                            <s-table-header key={field.key} listSlot={index === 0 ? "primary" : "labeled"}>
+                              {field.label}
+                            </s-table-header>
+                          ))}
+                        </s-table-header-row>
+                        <s-table-body>
+                          {previewRows.map((row, rowIndex) => (
+                            <s-table-row key={rowIndex}>
+                              {row.map((cell, cellIndex) => (
+                                <s-table-cell key={cellIndex}>
+                                  {cell || ""}
+                                </s-table-cell>
+                              ))}
+                            </s-table-row>
+                          ))}
+                        </s-table-body>
+                      </s-table>
+                    </div>
+                  </div>
+                </div>
+                <s-text color="subdued">
+                  Total rows to import: {parsedData.length}
+                </s-text>
+              </s-stack>
+            </s-box>
+          )}
+
+          {/* Processing State */}
+          {isProcessing && (
+            <s-banner tone="info">
+              <s-stack direction="block" gap="small-200">
+                <s-stack direction="inline" gap="small-200" alignItems="center">
+                  <s-spinner size="small" accessibilityLabel="Processing import" />
+                  <s-text>Processing import...</s-text>
+                </s-stack>
+                <s-text color="subdued" fontSize="small">
+                  You can close this modal - the import will continue in the background.
+                </s-text>
+              </s-stack>
+            </s-banner>
+          )}
+
+          {/* Import Results */}
+          {importResults && (
+            <s-box background="base" border="base" borderRadius="base" padding="base">
+              <s-stack direction="block" gap="small-300">
+                <s-heading>Import Results</s-heading>
+                <s-banner tone={importResults.partial ? "warning" : "success"}>
+                  <s-stack direction="block" gap="small-200">
+                    <s-text>
+                      <strong>Successfully imported:</strong>{" "}
+                      {importResults.imported} stores
+                    </s-text>
+                    {importResults.skipped > 0 && (
+                      <s-text>
+                        <strong>Skipped due to errors:</strong>{" "}
+                        {importResults.skipped} stores
+                      </s-text>
+                    )}
+                  </s-stack>
+                </s-banner>
+                {importResults.errors && importResults.errors.length > 0 && (
+                  <s-button
+                    onClick={() => setShowErrorReport(true)}
+                    variant="secondary"
+                  >
+                    View Error Report ({importResults.errors.length} rows)
+                  </s-button>
+                )}
+              </s-stack>
+            </s-box>
+          )}
 
         {/* Error Report */}
         {showErrorReport && failedRows.length > 0 && (
@@ -534,21 +570,21 @@ export default function StoreCSVImport({ onImport, onClose }) {
           />
         )}
 
-        {/* Import/Cancel Buttons at the bottom */}
-        <InlineStack gap="400">
-          <Button
-            primary
-            onClick={handleImport}
-            loading={isProcessing}
-            disabled={!file || parsedData.length === 0 || errors.length > 0}
-          >
-            Import Stores
-          </Button>
-          <Button onClick={handleClose} variant="secondary">
-            Cancel
-          </Button>
-        </InlineStack>
-      </BlockStack>
+          {/* Import/Cancel Buttons at the bottom */}
+          <s-stack direction="inline" gap="base">
+            <s-button
+              variant="primary"
+              onClick={handleImport}
+              disabled={isProcessing || !file || parsedData.length === 0 || errors.length > 0}
+            >
+              {isProcessing ? "Importing..." : "Import Stores"}
+            </s-button>
+            <s-button onClick={handleClose} variant="secondary">
+              Cancel
+            </s-button>
+          </s-stack>
+        </s-stack>
+      </s-box>
     </Modal>
   );
 }
@@ -631,105 +667,110 @@ function ErrorReportModal({
   };
 
   return (
-    <Modal id="import-error-modal" onClose={handleClose} large>
+    <Modal id="import-error-modal" onClose={handleClose} variant="large">
       <TitleBar title="Import Error Report" onClose={handleClose} />
-      <BlockStack gap="400" padding="400">
-        <Banner status="warning">
-          <Text variant="bodyMd">
-            The following {failedRows.length} rows could not be imported due to
-            validation errors. You can fix the data below and re-import, or
-            export the failed rows to fix them externally.
-          </Text>
-        </Banner>
-        {editableRows.map((row, rowIndex) => (
-          <Card key={row.row}>
-            <BlockStack gap="300">
-              <InlineStack align="space-between">
-                <Text variant="headingSm" as="h4">
-                  Row {row.row} -{" "}
-                  {row.originalData[Object.keys(row.originalData)[0]] ||
-                    "Unnamed Store"}
-                </Text>
-                {row.fixed && (
-                  <Text variant="bodySm" color="success">
-                    ✓ Fixed
-                  </Text>
-                )}
-              </InlineStack>
-              {/* Error Messages */}
-              <Banner status="critical" title="Validation Errors">
-                <List>
-                  {row.errors.map((error, errorIndex) => (
-                    <List.Item key={errorIndex}>{error}</List.Item>
-                  ))}
-                </List>
-              </Banner>
-              {/* Editable Fields */}
-              <BlockStack gap="300">
-                {EXPECTED_FIELDS.map((field) => {
-                  const csvHeader = fieldMappings[field.key];
-                  const originalValue = csvHeader
-                    ? row.originalData[csvHeader]
-                    : "";
-                  const currentValue = row.mappedData[field.key] || "";
-                  return (
-                    <InlineStack
-                      key={field.key}
-                      align="space-between"
-                      gap="400"
-                    >
-                      <Text variant="bodyMd" as="span">
-                        {field.label}{" "}
-                        {field.required && (
-                          <Text variant="bodyMd" as="span" color="critical">
-                            *
-                          </Text>
-                        )}
-                      </Text>
-                      <div style={{ minWidth: "200px" }}>
-                        <TextField
-                          label=""
-                          labelHidden
-                          value={currentValue}
-                          onChange={(value) =>
-                            handleFieldChange(rowIndex, field.key, value)
-                          }
-                          placeholder={
-                            originalValue ||
-                            `Enter ${field.label.toLowerCase()}`
-                          }
-                          error={
-                            field.required && !currentValue.trim()
-                              ? "Required field"
-                              : undefined
-                          }
-                        />
-                      </div>
-                    </InlineStack>
-                  );
-                })}
-              </BlockStack>
-            </BlockStack>
-          </Card>
-        ))}
-        {/* Action Buttons at the bottom */}
-        <InlineStack gap="400">
-          <Button
-            primary
-            onClick={handleRetryImport}
-            loading={isProcessing}
-            disabled={editableRows.filter((row) => row.fixed).length === 0}
-          >
-            Re-import Fixed Rows
-          </Button>
-          <Button onClick={exportFailedRows} variant="secondary">
-            Export Failed Rows
-          </Button>
-          <Button onClick={handleClose} variant="secondary">
-            Close
-          </Button>
-        </InlineStack>
-      </BlockStack>
+      <s-box padding="base">
+        <s-stack direction="block" gap="base">
+          <s-banner tone="warning">
+            <s-paragraph>
+              The following {failedRows.length} rows could not be imported due to
+              validation errors. You can fix the data below and re-import, or
+              export the failed rows to fix them externally.
+            </s-paragraph>
+          </s-banner>
+          {editableRows.map((row, rowIndex) => (
+            <s-box key={row.row} background="base" border="base" borderRadius="base" padding="base">
+              <s-stack direction="block" gap="small-300">
+                <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+                  <s-heading>
+                    Row {row.row} -{" "}
+                    {row.originalData[Object.keys(row.originalData)[0]] ||
+                      "Unnamed Store"}
+                  </s-heading>
+                  {row.fixed && (
+                    <s-text color="success">✓ Fixed</s-text>
+                  )}
+                </s-stack>
+                {/* Error Messages */}
+                <s-banner heading="Validation Errors" tone="critical">
+                  <s-unordered-list>
+                    {row.errors.map((error, errorIndex) => (
+                      <li key={errorIndex}>{error}</li>
+                    ))}
+                  </s-unordered-list>
+                </s-banner>
+                {/* Editable Fields */}
+                <s-stack direction="block" gap="small-300">
+                  {EXPECTED_FIELDS.map((field) => {
+                    const csvHeader = fieldMappings[field.key];
+                    const originalValue = csvHeader
+                      ? row.originalData[csvHeader]
+                      : "";
+                    const currentValue = row.mappedData[field.key] || "";
+                    return (
+                      <s-stack
+                        key={field.key}
+                        direction="inline"
+                        justifyContent="space-between"
+                        gap="base"
+                        alignItems="center"
+                      >
+                        <s-text>
+                          {field.label}{" "}
+                          {field.required && (
+                            <s-text color="critical">*</s-text>
+                          )}
+                        </s-text>
+                        <div style={{ minWidth: "200px" }}>
+                          <s-text-field
+                            value={currentValue}
+                            onChange={(e) =>
+                              handleFieldChange(rowIndex, field.key, e.target.value)
+                            }
+                            placeholder={
+                              originalValue ||
+                              `Enter ${field.label.toLowerCase()}`
+                            }
+                            aria-invalid={
+                              field.required && !currentValue.trim() ? "true" : "false"
+                            }
+                            aria-describedby={
+                              field.required && !currentValue.trim()
+                                ? `error-${rowIndex}-${field.key}`
+                                : undefined
+                            }
+                          />
+                          {field.required && !currentValue.trim() && (
+                            <s-text id={`error-${rowIndex}-${field.key}`} color="critical">
+                              Required field
+                            </s-text>
+                          )}
+                        </div>
+                      </s-stack>
+                    );
+                  })}
+                </s-stack>
+              </s-stack>
+            </s-box>
+          ))}
+          {/* Action Buttons at the bottom */}
+          <s-stack direction="inline" gap="base">
+            <s-button
+              variant="primary"
+              onClick={handleRetryImport}
+              disabled={isProcessing || editableRows.filter((row) => row.fixed).length === 0}
+            >
+              {isProcessing ? "Re-importing..." : "Re-import Fixed Rows"}
+            </s-button>
+            <s-button onClick={exportFailedRows} variant="secondary">
+              Export Failed Rows
+            </s-button>
+            <s-button onClick={handleClose} variant="secondary">
+              Close
+            </s-button>
+          </s-stack>
+        </s-stack>
+      </s-box>
     </Modal>
   );
 }
