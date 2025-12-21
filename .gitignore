@@ -29,3 +29,6 @@ coverage/
 # Ignore shopify files created during app dev
 .shopify/*
 .shopify.lock
+
+# npm config (may contain tokens)
+.npmrc
