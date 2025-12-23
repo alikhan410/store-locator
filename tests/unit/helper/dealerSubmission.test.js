@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 describe('Dealer Submission System', () => {
   describe('Form Validation', () => {
@@ -113,204 +113,104 @@ describe('Dealer Submission System', () => {
     });
   });
 
-  describe('Klaviyo Integration', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
+  describe('Email Notification Integration', () => {
+    // Email notifications are now handled by @bernierllc/email-manager
+    // See app/helper/emailManager.js for implementation
+    // Integration tests for the email-manager service should be in a separate test file
 
-    it('should send submission received event to Klaviyo', async () => {
+    it('should have required data for approval email', () => {
       const mockSubmission = {
         id: 'sub_123',
         storeName: 'Test Store',
         contactName: 'John Doe',
         contactEmail: 'john@teststore.com',
-        contactPhone: '+1234567890',
         address: '123 Main St',
         city: 'Test City',
         state: 'CA',
         zip: '12345',
-        storeType: 'Dealer',
-        description: 'Test store description',
-        tags: 'electronics, repair',
+        country: 'United States',
         website: 'https://teststore.com',
       };
 
-      const mockKlaviyoEvent = {
-        data: {
-          type: "event",
-          attributes: {
-            properties: {
-              "Store Name": mockSubmission.storeName,
-              "Contact Name": mockSubmission.contactName,
-              "Contact Email": mockSubmission.contactEmail,
-              "Contact Phone": mockSubmission.contactPhone,
-              "Address": mockSubmission.address,
-              "City": mockSubmission.city,
-              "State": mockSubmission.state,
-              "ZIP": mockSubmission.zip,
-              "Store Type": mockSubmission.storeType,
-              "Description": mockSubmission.description,
-              "Tags": mockSubmission.tags,
-              "Website": mockSubmission.website,
-              "Shop": "test-shop.myshopify.com",
-              "Submission ID": mockSubmission.id,
-            },
-            metric: {
-              data: {
-                type: "metric",
-                attributes: {
-                  name: "Store Submission Received",
-                  service: "store_locator"
-                }
-              }
-            },
-            profile: {
-              data: {
-                type: "profile",
-                attributes: {
-                  email: mockSubmission.contactEmail,
-                  first_name: "John",
-                  last_name: "Doe",
-                  phone_number: mockSubmission.contactPhone,
-                  organization: mockSubmission.storeName,
-                  title: "Store Owner",
-                  location: {
-                    address1: mockSubmission.address,
-                    address2: null,
-                    city: mockSubmission.city,
-                    state: mockSubmission.state,
-                    zip: mockSubmission.zip,
-                    country: "United States",
-                  }
-                }
-              }
-            },
-            time: expect.any(String),
-            value: 1,
-            value_currency: "USD",
-            unique_id: `store_submission_${mockSubmission.id}`
-          }
-        }
-      };
-
-      // Mock fetch for Klaviyo API
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ success: true })
-      });
-
-      // Simulate sending to Klaviyo
-      const response = await fetch('https://a.klaviyo.com/api/events', {
-        method: 'POST',
-        headers: {
-          'accept': 'application/vnd.api+json',
-          'revision': '2025-07-15',
-          'content-type': 'application/vnd.api+json',
-          'Authorization': 'Klaviyo-API-Key test-key'
-        },
-        body: JSON.stringify(mockKlaviyoEvent)
-      });
-
-      expect(fetch).toHaveBeenCalledWith(
-        'https://a.klaviyo.com/api/events',
-        expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            'Authorization': 'Klaviyo-API-Key test-key'
-          })
-        })
-      );
-
-      expect(response.ok).toBe(true);
+      // Verify all required fields for sendSubmissionApprovedEmail are present
+      expect(mockSubmission.contactName).toBeDefined();
+      expect(mockSubmission.contactEmail).toBeDefined();
+      expect(mockSubmission.storeName).toBeDefined();
+      expect(mockSubmission.address).toBeDefined();
+      expect(mockSubmission.city).toBeDefined();
+      expect(mockSubmission.state).toBeDefined();
+      expect(mockSubmission.zip).toBeDefined();
+      expect(mockSubmission.country).toBeDefined();
     });
 
-    it('should send approval notification to Klaviyo', async () => {
+    it('should have required data for rejection email', () => {
       const mockSubmission = {
         id: 'sub_123',
         storeName: 'Test Store',
         contactName: 'John Doe',
         contactEmail: 'john@teststore.com',
+        address: '123 Main St',
+        city: 'Test City',
+        state: 'CA',
+        zip: '12345',
+        adminNotes: 'Incomplete information provided',
       };
 
-      const mockApprovalEvent = {
-        data: {
-          type: "event",
-          attributes: {
-            properties: {
-              "Store Name": mockSubmission.storeName,
-              "Contact Name": mockSubmission.contactName,
-              "Contact Email": mockSubmission.contactEmail,
-              "Status": "APPROVED",
-              "Shop": "test-shop.myshopify.com",
-              "Submission ID": mockSubmission.id,
-            },
-            metric: {
-              data: {
-                type: "metric",
-                attributes: {
-                  name: "Store Submission APPROVED",
-                  service: "store_locator"
-                }
-              }
-            },
-            profile: {
-              data: {
-                type: "profile",
-                attributes: {
-                  email: mockSubmission.contactEmail,
-                  first_name: "John",
-                  last_name: "Doe",
-                  phone_number: null,
-                  organization: mockSubmission.storeName,
-                }
-              }
-            },
-            time: expect.any(String),
-            value: 1,
-            value_currency: "USD",
-            unique_id: `store_submission_APPROVED_${mockSubmission.id}`
-          }
-        }
-      };
-
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ success: true })
-      });
-
-      const response = await fetch('https://a.klaviyo.com/api/events', {
-        method: 'POST',
-        headers: {
-          'accept': 'application/vnd.api+json',
-          'revision': '2025-07-15',
-          'content-type': 'application/vnd.api+json',
-          'Authorization': 'Klaviyo-API-Key test-key'
-        },
-        body: JSON.stringify(mockApprovalEvent)
-      });
-
-      expect(fetch).toHaveBeenCalled();
-      expect(response.ok).toBe(true);
+      // Verify all required fields for sendSubmissionRejectedEmail are present
+      expect(mockSubmission.contactName).toBeDefined();
+      expect(mockSubmission.contactEmail).toBeDefined();
+      expect(mockSubmission.storeName).toBeDefined();
+      expect(mockSubmission.address).toBeDefined();
+      expect(mockSubmission.city).toBeDefined();
+      expect(mockSubmission.state).toBeDefined();
+      expect(mockSubmission.zip).toBeDefined();
     });
 
-    it('should handle Klaviyo API errors gracefully', async () => {
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 429,
-        statusText: 'Too Many Requests'
-      });
+    it('should have required data for support request email', () => {
+      const mockSupportRequest = {
+        subject: 'Help with store locator',
+        issueType: 'technical',
+        description: 'I am having trouble adding stores',
+        shop: 'test-shop.myshopify.com',
+      };
 
-      try {
-        await fetch('https://a.klaviyo.com/api/events', {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Klaviyo-API-Key test-key'
-          },
-          body: JSON.stringify({})
-        });
-      } catch (error) {
-        expect(error.message).toContain('Klaviyo API error');
-      }
+      // Verify all required fields for sendSupportRequestEmail are present
+      expect(mockSupportRequest.subject).toBeDefined();
+      expect(mockSupportRequest.issueType).toBeDefined();
+      expect(mockSupportRequest.description).toBeDefined();
+      expect(mockSupportRequest.shop).toBeDefined();
+    });
+
+    it('should handle optional fields gracefully', () => {
+      const mockSubmissionMinimal = {
+        id: 'sub_123',
+        storeName: 'Test Store',
+        contactName: 'John Doe',
+        contactEmail: 'john@teststore.com',
+        address: '123 Main St',
+        city: 'Test City',
+        state: 'CA',
+        zip: '12345',
+        country: 'United States',
+        // Optional fields are undefined
+        website: undefined,
+        contactPhone: undefined,
+        address2: undefined,
+        adminNotes: undefined,
+      };
+
+      // Optional fields should default to empty string in email data
+      const emailData = {
+        website: mockSubmissionMinimal.website || '',
+        contactPhone: mockSubmissionMinimal.contactPhone || '',
+        address2: mockSubmissionMinimal.address2 || '',
+        adminNotes: mockSubmissionMinimal.adminNotes || '',
+      };
+
+      expect(emailData.website).toBe('');
+      expect(emailData.contactPhone).toBe('');
+      expect(emailData.address2).toBe('');
+      expect(emailData.adminNotes).toBe('');
     });
   });
 

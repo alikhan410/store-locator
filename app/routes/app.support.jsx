@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
   
-  const contactEmail = process.env.SUPPORT_EMAIL || "help@storetrail.com";
+  const contactEmail = process.env.SUPPORT_EMAIL || "help@storetrail.app";
   const contactUrl = process.env.CONTACT_URL || "https://storetrail.app/support";
 
   return {

@@ -161,17 +161,17 @@ export const action = async ({ request }) => {
         },
       });
 
-      // Send rejection notification to Klaviyo
+      // Send rejection notification emails
       const submission = await prisma.storeSubmission.findUnique({
         where: { id: submissionId },
       });
 
       try {
-        await sendKlaviyoNotification(submission, "REJECTED", session.shop);
-      } catch (klaviyoError) {
+        await sendSubmissionRejectedEmail(submission, session.shop);
+      } catch (emailError) {
         console.error(
-          "Failed to send Klaviyo rejection notification:",
-          klaviyoError,
+          "Failed to send rejection notification emails:",
+          emailError,
         );
       }
 

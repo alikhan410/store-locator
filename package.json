@@ -41,16 +41,13 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:basic": "playwright test --config=playwright.basic.config.js",
     "test:all": "npm run test:run && npm run test:e2e",
-    "email:setup": "node scripts/setup-email-templates.js",
-    "email:service": "node scripts/start-email-manager.js"
+    "email:test": "node scripts/test-sendgrid-direct.js"
   },
   "type": "module",
   "engines": {
     "node": "^18.20 || ^20.10 || >=21.0.0"
   },
   "dependencies": {
-    "@bernierllc/email-manager": "^0.1.6",
-    "@bernierllc/email-manager-client": "^0.2.0",
     "@googlemaps/js-api-loader": "^1.16.10",
     "@prisma/client": "^6.2.1",
     "@remix-run/dev": "2.16.7",
@@ -58,6 +55,7 @@
     "@remix-run/node": "2.16.7",
     "@remix-run/react": "2.16.7",
     "@remix-run/serve": "2.16.7",
+    "@sendgrid/mail": "^8.1.6",
     "@shopify/app-bridge-react": "^4.1.6",
     "@shopify/polaris": "^12.0.0",
     "@shopify/polaris-viz": "^16.16.0",
