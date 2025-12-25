@@ -10,10 +10,14 @@ import db from "../db.server";
  * 
  * This is similar to app/uninstalled but is specifically for GDPR compliance
  * and is sent 48 hours after uninstall (giving you time to process app/uninstalled first).
+ * 
+ * IMPORTANT: authenticate.webhook() reads the raw request body for HMAC verification.
+ * Do NOT read request.json() or request.text() before calling authenticate.webhook(),
+ * as this will consume the body stream and HMAC verification will fail.
  */
 export const action = async ({ request }) => {
-  // authenticate.webhook() will throw a Response with 401 status if HMAC is invalid
-  // Let it propagate - Remix will handle it correctly
+  // authenticate.webhook() validates HMAC and throws Response with 401 if invalid
+  // Must be called FIRST before any body parsing - it needs the raw body stream
   const { shop, topic, payload } = await authenticate.webhook(request);
   
   console.log(`Received ${topic} webhook for ${shop}`);
@@ -33,6 +37,8 @@ export const action = async ({ request }) => {
   await cleanupShopData(shop);
   console.log(`GDPR compliance: Cleaned up all data for shop: ${shop}`);
   
-  return new Response(null, { status: 200 });
+  // Return 200 OK quickly (Shopify requires response within 5 seconds)
+  // Using new Response() without status defaults to 200, matching working webhooks
+  return new Response();
 };
 
