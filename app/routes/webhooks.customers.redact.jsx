@@ -8,10 +8,14 @@ import { authenticate } from "../shopify.server";
  * 
  * Since this app doesn't collect customer data (only store location data for merchants),
  * we acknowledge the request but have no customer data to delete.
+ * 
+ * IMPORTANT: authenticate.webhook() reads the raw request body for HMAC verification.
+ * Do NOT read request.json() or request.text() before calling authenticate.webhook(),
+ * as this will consume the body stream and HMAC verification will fail.
  */
 export const action = async ({ request }) => {
-  // authenticate.webhook() will throw a Response with 401 status if HMAC is invalid
-  // Let it propagate - Remix will handle it correctly
+  // authenticate.webhook() validates HMAC and throws Response with 401 if invalid
+  // Must be called FIRST before any body parsing - it needs the raw body stream
   const { shop, topic, payload } = await authenticate.webhook(request);
   
   console.log(`Received ${topic} webhook for ${shop}`);
@@ -25,6 +29,8 @@ export const action = async ({ request }) => {
   // 2. Delete or anonymize the data
   // 3. Log the deletion for audit purposes
   
-  return new Response(null, { status: 200 });
+  // Return 200 OK quickly (Shopify requires response within 5 seconds)
+  // Using new Response() without status defaults to 200, matching working webhooks
+  return new Response();
 };
 
