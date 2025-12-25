@@ -138,9 +138,14 @@ export const action = async ({ request }) => {
         },
       });
 
+      // Fetch updated submission to include adminNotes in email
+      const updatedSubmission = await prisma.storeSubmission.findUnique({
+        where: { id: submissionId },
+      });
+
       // Send approval notification emails
       try {
-        await sendSubmissionApprovedEmail(submission, session.shop);
+        await sendSubmissionApprovedEmail(updatedSubmission, session.shop);
       } catch (emailError) {
         console.error(
           "Failed to send approval notification emails:",
