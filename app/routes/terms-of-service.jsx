@@ -81,19 +81,12 @@ export default function TermsOfService() {
       <p>The App requires the following Shopify permissions:</p>
       <ul>
         <li>
-          <code>read_themes</code> - To access theme files for widget
-          integration
-        </li>
-        <li>
           <code>write_app_proxy</code> - To create proxy routes for external
-          access
-        </li>
-        <li>
-          <code>write_products</code> - To manage store location data
+          access to store location data
         </li>
         <li>
           <code>write_themes</code> - To install and configure the store locator
-          widget
+          widget as a theme app extension
         </li>
       </ul>
 
