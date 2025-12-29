@@ -2,7 +2,8 @@
   "name": "store-locator",
   "private": true,
   "scripts": {
-    "build": "node -e \"console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'SET (' + process.env.DATABASE_URL.substring(0, 30) + '...)' : 'NOT SET'); console.log('DIRECT_URL:', process.env.DIRECT_URL ? 'SET (' + process.env.DIRECT_URL.substring(0, 30) + '...)' : 'NOT SET')\" && prisma generate --no-engine && prisma migrate deploy && remix vite:build",
+    "postinstall": "prisma generate",
+    "build": "node -e \"console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'SET (' + process.env.DATABASE_URL.substring(0, 30) + '...)' : 'NOT SET'); console.log('DIRECT_URL:', process.env.DIRECT_URL ? 'SET (' + process.env.DIRECT_URL.substring(0, 30) + '...)' : 'NOT SET'); if (!process.env.DATABASE_URL || !process.env.DIRECT_URL) { console.error('ERROR: DATABASE_URL or DIRECT_URL not set!'); process.exit(1); }\" && prisma generate && prisma migrate deploy && remix vite:build",
     "dev": "shopify app dev",
     "config:link": "shopify app config link",
     "generate": "shopify app generate",
