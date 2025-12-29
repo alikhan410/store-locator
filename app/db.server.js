@@ -1,9 +1,5 @@
 import 'dotenv/config';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const { PrismaClient } = require('@prisma/client');
+import { PrismaClient } from '@prisma/client';
 import { environment, databaseUrl, isProduction, isDevelopment, isTest } from "./config/database.js";
 
 // Ensure DATABASE_URL is set (database.js validates and exports it)
@@ -19,19 +15,13 @@ if (process.env.NODE_ENV === "production") {
   console.log("[db.server] DIRECT_URL starts with:", process.env.DIRECT_URL ? process.env.DIRECT_URL.substring(0, 50) : "N/A");
 }
 
-// Create PostgreSQL connection pool
-const pool = new Pool({ connectionString });
-
-// Create Prisma adapter
-const adapter = new PrismaPg({ pool });
-
-// Create PrismaClient with adapter
+// Create PrismaClient (Prisma 6 - no adapter needed)
 if (process.env.NODE_ENV !== "production") {
   if (!global.prismaGlobal) {
-    global.prismaGlobal = new PrismaClient({ adapter });
+    global.prismaGlobal = new PrismaClient();
   }
 }
 
-const prisma = global.prismaGlobal ?? new PrismaClient({ adapter });
+const prisma = global.prismaGlobal ?? new PrismaClient();
 
 export default prisma;

@@ -2,17 +2,17 @@
   "name": "store-locator",
   "private": true,
   "scripts": {
-    "postinstall": "prisma generate --config prisma/config.js",
-    "build": "node -e \"console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'SET (' + process.env.DATABASE_URL.substring(0, 30) + '...)' : 'NOT SET'); console.log('DIRECT_URL:', process.env.DIRECT_URL ? 'SET (' + process.env.DIRECT_URL.substring(0, 30) + '...)' : 'NOT SET'); if (!process.env.DATABASE_URL || !process.env.DIRECT_URL) { console.error('ERROR: DATABASE_URL or DIRECT_URL not set!'); process.exit(1); }\" && prisma generate --config prisma/config.js && prisma migrate deploy --config prisma/config.js && remix vite:build",
+    "postinstall": "prisma generate",
+    "build": "node -e \"console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'SET (' + process.env.DATABASE_URL.substring(0, 30) + '...)' : 'NOT SET'); console.log('DIRECT_URL:', process.env.DIRECT_URL ? 'SET (' + process.env.DIRECT_URL.substring(0, 30) + '...)' : 'NOT SET'); if (!process.env.DATABASE_URL || !process.env.DIRECT_URL) { console.error('ERROR: DATABASE_URL or DIRECT_URL not set!'); process.exit(1); }\" && prisma generate && prisma migrate deploy && remix vite:build",
     "dev": "shopify app dev",
     "config:link": "shopify app config link",
     "generate": "shopify app generate",
     "deploy": "shopify app deploy",
     "config:use": "shopify app config use",
     "env": "shopify app env",
-    "start": "prisma generate --config prisma/config.js && remix-serve ./build/server/index.js",
+    "start": "prisma generate && remix-serve ./build/server/index.js",
     "docker-start": "npm run setup && npm run start",
-    "setup": "npx prisma generate --config prisma/config.js && npx prisma migrate deploy --config prisma/config.js",
+    "setup": "npx prisma generate && npx prisma migrate deploy",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint .",
     "shopify": "shopify",
     "prisma": "prisma",
@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.10",
-    "@prisma/client": "^7.0.0",
+    "@prisma/client": "^6.19.1",
     "@remix-run/dev": "2.16.7",
     "@remix-run/fs-routes": "2.16.7",
     "@remix-run/node": "2.16.7",
@@ -69,9 +69,7 @@
     "libphonenumber-js": "^1.12.9",
     "nodemailer": "^7.0.11",
     "papaparse": "^5.5.3",
-    "@prisma/adapter-pg": "^7.0.0",
-    "pg": "^8.13.1",
-    "prisma": "^7.0.0",
+    "prisma": "^6.19.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "vite-tsconfig-paths": "^5.0.1"
@@ -86,12 +84,12 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/eslint": "^9.6.1",
     "@types/node": "^22.2.0",
-    "@types/pg": "^8.11.10",
     "@types/react": "^18.2.31",
     "@types/react-dom": "^18.2.14",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "^3.2.4",
     "@vitest/ui": "^3.2.4",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^8.42.0",
     "eslint-config-prettier": "^10.0.1",
     "jsdom": "^26.1.0",
@@ -117,11 +115,7 @@
     "@graphql-tools/url-loader": "8.0.16",
     "@graphql-codegen/client-preset": "4.7.0",
     "@graphql-codegen/typescript-operations": "4.5.0",
-    "minimatch": "9.0.5",
-    "@shopify/shopify-app-session-storage-prisma": {
-      "@prisma/client": "^7.0.0",
-      "prisma": "^7.0.0"
-    }
+    "minimatch": "9.0.5"
   },
   "author": "cz 3"
 }
