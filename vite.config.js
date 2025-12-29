@@ -68,8 +68,22 @@ export default defineConfig({
   ],
   build: {
     assetsInlineLimit: 0,
+    rollupOptions: {
+      external: [
+        '.prisma/client',
+        '@prisma/client',
+        '@prisma/adapter-pg',
+        'pg',
+        'pg-native',
+      ],
+    },
   },
   optimizeDeps: {
     include: ["@shopify/app-bridge-react", "@shopify/polaris"],
+    exclude: ['@prisma/client', '.prisma/client'],
+  },
+  ssr: {
+    noExternal: ['@shopify/app-bridge-react', '@shopify/polaris'],
+    external: ['@prisma/client', '.prisma/client', '@prisma/adapter-pg', 'pg'],
   },
 });
