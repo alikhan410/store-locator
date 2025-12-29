@@ -1,3 +1,9 @@
+// Ensure DATABASE_URL is set before any Prisma operations
+import 'dotenv/config';
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL environment variable is required but not set');
+}
+
 import "@shopify/shopify-app-remix/adapters/node";
 import {
   ApiVersion,
