@@ -80,7 +80,10 @@ function buildWhereClause(shop, filters = {}) {
   // Add hasPhone filter
   if (hasPhone === "has") {
     conditions.push({
-      phone: { not: null, not: "" },
+      AND: [
+        { phone: { not: null } },
+        { phone: { not: "" } },
+      ],
     });
   } else if (hasPhone === "none") {
     conditions.push({
@@ -94,7 +97,10 @@ function buildWhereClause(shop, filters = {}) {
   // Add hasLink filter
   if (hasLink === "has") {
     conditions.push({
-      link: { not: null, not: "" },
+      AND: [
+        { link: { not: null } },
+        { link: { not: "" } },
+      ],
     });
   } else if (hasLink === "none") {
     conditions.push({
