@@ -2,7 +2,7 @@
 
 client_id = "fc0568978e5a7a64c4020dc35c935330"
 name = "Storetrail"
-application_url = "https://wx-ul-wow-actors.trycloudflare.com"
+application_url = "https://storetrail.vercel.app"
 embedded = true
 handle = "storetrail"
 
@@ -41,9 +41,9 @@ scopes = "write_app_proxy,write_themes"
 
 [auth]
 redirect_urls = [
-  "https://wx-ul-wow-actors.trycloudflare.com/auth/callback",
-  "https://wx-ul-wow-actors.trycloudflare.com/auth/shopify/callback",
-  "https://wx-ul-wow-actors.trycloudflare.com/api/auth/callback"
+  "https://storetrail.vercel.app/auth/callback",
+  "https://storetrail.vercel.app/auth/shopify/callback",
+  "https://storetrail.vercel.app/api/auth/callback"
 ]
 
 [app_proxy]
