@@ -1,33 +1,25 @@
-// /**
-//  * Database configuration that handles environment-specific database URLs
-//  * This allows us to use different databases for development and production
-//  */
+/**
+ * Database configuration
+ * Uses DATABASE_URL directly from environment variables
+ * 
+ * Note: The .env file should be loaded before importing this module.
+ * Use 'dotenv/config' import or ensure DATABASE_URL is set in the environment.
+ */
 
 const environment = process.env.ENVIRONMENT || 'development';
 
-// Database URL mapping based on environment
-const databaseUrls = {
-  development: process.env.PRISMA_POSTGRES_DATABASE_URL_DEV,
-  production: process.env.PRISMA_POSTGRES_DATABASE_URL_PROD,
-  test: process.env.PRISMA_POSTGRES_DATABASE_URL_TEST || process.env.PRISMA_POSTGRES_DATABASE_URL_DEV,
-};
-
-// Get the appropriate database URL for the current environment
+// Get DATABASE_URL directly from environment
 const getDatabaseUrl = () => {
-  const url = databaseUrls[environment];
+  const url = process.env.DATABASE_URL;
   
   if (!url) {
     throw new Error(
-      `Database URL not found for environment: ${environment}. ` +
-      `Please set PRISMA_POSTGRES_DATABASE_URL_${environment.toUpperCase()} in your environment variables.`
+      'DATABASE_URL is required. Please set it in your environment variables.'
     );
   }
   
   return url;
 };
-
-// Set the DATABASE_URL environment variable for Prisma
-process.env.DATABASE_URL = getDatabaseUrl();
 
 export { environment };
 export const databaseUrl = getDatabaseUrl();

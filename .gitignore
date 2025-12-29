@@ -32,3 +32,7 @@ coverage/
 
 # npm config (may contain tokens)
 .npmrc
+
+# AI context files
+.cursor-context.md
+.ai-context.md
