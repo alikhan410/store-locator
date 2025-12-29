@@ -1,8 +1,7 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
-import pkg from '@prisma/client';
-const { PrismaClient } = pkg;
+import { PrismaClient } from '@prisma/client';
 import { environment, databaseUrl, isProduction, isDevelopment, isTest } from "./config/database.js";
 
 // Ensure DATABASE_URL is set (database.js validates and exports it)
