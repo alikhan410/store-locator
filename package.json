@@ -2,7 +2,7 @@
   "name": "store-locator",
   "private": true,
   "scripts": {
-    "build": "prisma generate --no-engine && remix vite:build",
+    "build": "prisma generate --no-engine && prisma migrate deploy && remix vite:build",
     "dev": "shopify app dev",
     "config:link": "shopify app config link",
     "generate": "shopify app generate",
