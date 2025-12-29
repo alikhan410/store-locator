@@ -1,31 +1,4 @@
 import 'dotenv/config';
-
-// Ensure Prisma client is generated before importing (for Vercel serverless functions)
-if (process.env.NODE_ENV === "production") {
-  try {
-    const { execSync } = await import("child_process");
-    const { fileURLToPath } = await import("url");
-    const { dirname, join } = await import("path");
-    const { existsSync } = await import("fs");
-    
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const projectRoot = join(__dirname, "../..");
-    const prismaClientPath = join(projectRoot, "node_modules/.prisma/client");
-    
-    if (!existsSync(prismaClientPath)) {
-      console.log("[db.server] Prisma client not found, generating...");
-      execSync("npx prisma generate --config prisma/config.js", {
-        cwd: projectRoot,
-        stdio: "pipe",
-        env: { ...process.env },
-      });
-    }
-  } catch (error) {
-    console.warn("[db.server] Failed to ensure Prisma client generation:", error.message);
-  }
-}
-
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { createRequire } from 'module';
