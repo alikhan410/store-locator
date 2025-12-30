@@ -1,14 +1,13 @@
 {% comment %}
-  Store Locator Dealer Submission Form Block
+  Dealer Submission Form Block
   This form submits to the app proxy route /apps/storetrail/dealer-submission
 {% endcomment %}
-{% if block.settings.google_maps_api_key %}
-  <script
-    src="https://maps.googleapis.com/maps/api/js?key={{ block.settings.google_maps_api_key }}&libraries=places"
-    async
-    defer
-  ></script>
-{% endif %}
+<script
+  src="/apps/storetrail/maps-loader"
+  async
+  defer
+></script>
+
 <div
   class="store-locator-dealer-form"
   style="background: {{ block.settings.background_color }}; border-radius: {{ block.settings.border_radius }}px;"
@@ -531,7 +530,6 @@
     
     // Initialize Google Maps and Autocomplete
     function initMapAndAutocomplete() {
-      {% if block.settings.google_maps_api_key %}
       // Wait for Google Maps to load
       if (typeof google === 'undefined' || !google.maps) {
         // Check every 100ms if Google Maps is loaded
@@ -628,7 +626,6 @@
           }
         });
       }
-      {% endif %}
     }
     
     function updateCoordinates(lat, lng) {
