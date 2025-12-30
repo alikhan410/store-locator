@@ -90,7 +90,7 @@ export async function sendSupportRequestEmail({ subject, issueType, description,
       </div>
       <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
       <p style="color: #666; font-size: 12px;">
-        This email was sent from the Store Locator support system.<br>
+        This email was sent from the Storetrail support system.<br>
         Reply to this email to respond to the merchant.
       </p>
     </div>
@@ -108,7 +108,7 @@ Description:
 ${description}
 
 ---
-This email was sent from the Store Locator support system.
+This email was sent from the Storetrail support system.
 Reply to this email to respond to the merchant.
   `.trim();
 
@@ -216,7 +216,7 @@ Questions? Contact us at ${getSupportEmail()}
       ` : ''}
       <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
       <p style="color: #666; font-size: 12px;">
-        This is an automated notification from the Store Locator system.
+        This is an automated notification from the Storetrail system.
       </p>
     </div>
   `;
@@ -358,7 +358,7 @@ Questions? Contact us at ${getSupportEmail()}
       ` : ''}
       <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
       <p style="color: #666; font-size: 12px;">
-        This is an automated notification from the Store Locator system.
+        This is an automated notification from the Storetrail system.
       </p>
     </div>
   `;

@@ -26,14 +26,14 @@ export default function App() {
     accessibilityUtils.addSkipLink("main-content", "Skip to main content");
 
     // Announce page load
-    accessibilityUtils.announcePageChange("Store Locator Dashboard");
+    accessibilityUtils.announcePageChange("Storetrail Dashboard");
   }, []);
 
   return (
     <AppProvider isEmbeddedApp apiKey={apiKey}>
       <NavMenu>
         <Link to="/app" rel="home">
-          Store Locator
+          Storetrail
         </Link>
         <Link to="/app/add-store">
           Add a store

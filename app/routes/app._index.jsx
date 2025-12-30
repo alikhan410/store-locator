@@ -260,8 +260,8 @@ export default function Index() {
   };
 
   return (
-    <s-page heading="Store Locator Dashboard">
-      <ui-title-bar title="Store Locator Dashboard" />
+    <s-page heading="Storetrail Dashboard">
+      <ui-title-bar title="Storetrail Dashboard" />
       
       {/* Primary and Secondary Actions */}
       <s-button 
@@ -441,10 +441,10 @@ export default function Index() {
             <s-stack direction="block" gap="large" alignItems="center" textAlign="center">
               <s-image
                 src="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                alt="Welcome to Store Locator"
+                alt="Welcome to Storetrail"
                 width="120px"
               />
-              <s-heading>Welcome to Store Locator! 🎉</s-heading>
+              <s-heading>Welcome to Storetrail! 🎉</s-heading>
               <s-paragraph>
                 Get started by adding your store locations to help customers find you easily.
               </s-paragraph>
@@ -590,7 +590,7 @@ export default function Index() {
                   {analytics.totalSearches > 0 ? (
                     <s-grid gap="base">
                       <s-grid gridTemplateColumns="1fr auto" alignItems="center" gap="base">
-                        <s-heading>Store Locator Analytics</s-heading>
+                        <s-heading>Storetrail Analytics</s-heading>
                         <s-badge tone="info">Last 30 days</s-badge>
                       </s-grid>
                       <s-paragraph color="subdued">

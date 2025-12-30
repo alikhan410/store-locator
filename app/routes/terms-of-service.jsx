@@ -41,13 +41,13 @@ export default function TermsOfService() {
 
       <h2>1. Acceptance of Terms</h2>
       <p>
-        By installing, accessing, or using the Store Locator app ("the App"),
+        By installing, accessing, or using the Storetrail app ("the App"),
         you agree to be bound by these Terms of Service ("Terms"). If you do not
         agree to these Terms, do not use the App.
       </p>
 
       <h2>2. Description of Service</h2>
-      <p>Store Locator is a Shopify app that enables merchants to:</p>
+      <p>Storetrail is a Shopify app that enables merchants to:</p>
       <ul>
         <li>Manage and display store locations on their Shopify store</li>
         <li>Import and export store data via CSV</li>
