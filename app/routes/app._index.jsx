@@ -319,7 +319,7 @@ export default function Index() {
                 <s-box borderRadius="base" border="base" background="base">
                   {/* Step 1: Add Your First Store */}
                   <s-box>
-                    <s-grid gridTemplateColumns="1fr auto" gap="base" padding="small">
+                    <s-grid gridTemplateColumns="1fr auto" gap="base" padding="small" alignItems="center">
                       <s-checkbox 
                         label="Add your first store location"
                         checked={setupCompleted.step1 || metrics.totalStores > 0}
@@ -366,7 +366,7 @@ export default function Index() {
                   
                   {/* Step 2: Configure Google Maps API Key */}
                   <s-box>
-                    <s-grid gridTemplateColumns="1fr auto" gap="base" padding="small">
+                    <s-grid gridTemplateColumns="1fr auto" gap="base" padding="small" alignItems="center">
                       <s-checkbox 
                         label="Configure Google Maps API key"
                         checked={setupCompleted.step2}
@@ -408,7 +408,7 @@ export default function Index() {
                   
                   {/* Step 3: Enable Theme Extension */}
                   <s-box>
-                    <s-grid gridTemplateColumns="1fr auto" gap="base" padding="small">
+                    <s-grid gridTemplateColumns="1fr auto" gap="base" padding="small" alignItems="center">
                       <s-checkbox 
                         label="Add store locator to your theme"
                         checked={setupCompleted.step3}

@@ -40,6 +40,36 @@ export const loader = async ({ request }) => {
       return new Response(`Maximum radius is ${maxRadiusKm} km`, { status: 400 });
     }
 
+    // Debug: Check total stores for this shop
+    const totalStores = await prisma.store.count({
+      where: { shop: shop },
+    });
+    console.log("Total stores for shop:", totalStores);
+
+    // Debug: Check stores with coordinates
+    const storesWithCoords = await prisma.store.count({
+      where: {
+        shop: shop,
+        lat: { not: null },
+        lng: { not: null },
+      },
+    });
+    console.log("Stores with coordinates:", storesWithCoords);
+
+    // Debug: Get sample stores to see what we have
+    const sampleStores = await prisma.store.findMany({
+      where: { shop: shop },
+      take: 3,
+      select: {
+        name: true,
+        city: true,
+        state: true,
+        lat: true,
+        lng: true,
+      },
+    });
+    console.log("Sample stores:", sampleStores);
+
     let nearbyCandidates;
 
     if (radiusKm >= 20) {

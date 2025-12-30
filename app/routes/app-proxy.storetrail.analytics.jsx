@@ -33,7 +33,6 @@ export const action = async ({ request }) => {
   let shop = url.searchParams.get("shop");
 
   if (!shop) {
-    console.error("Analytics endpoint: Shop parameter missing from authenticated URL");
     return new Response(
       JSON.stringify({ success: false, error: "Shop parameter missing" }),
       {
@@ -42,8 +41,6 @@ export const action = async ({ request }) => {
       }
     );
   }
-  
-  console.log("Analytics endpoint: Received event for shop:", shop);
 
   let eventData;
   try {
@@ -133,13 +130,6 @@ export const action = async ({ request }) => {
       },
     });
 
-    console.log("Analytics event saved successfully:", {
-      id: analyticsEvent.id,
-      shop: shop,
-      eventType: eventType,
-      timestamp: eventTimestamp
-    });
-
     return new Response(
       JSON.stringify({ 
         success: true, 
@@ -151,13 +141,6 @@ export const action = async ({ request }) => {
       }
     );
   } catch (error) {
-    console.error("Error saving analytics event:", error);
-    console.error("Event data that failed:", {
-      shop,
-      sessionId,
-      eventType,
-      eventData
-    });
     return new Response(
       JSON.stringify({ 
         success: false, 

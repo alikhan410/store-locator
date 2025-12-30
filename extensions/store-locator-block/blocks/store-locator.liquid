@@ -6,8 +6,21 @@
 
 <script src="{{ 'haversineDistance.js' | asset_url }}" defer></script>
 <script src="{{ 'analytics-tracking.js' | asset_url }}" defer></script>
+{% comment %}
+  Original Google Maps script tag - now using app proxy endpoint instead
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key={{ block.settings.GOOGLE_PUBLIC_API_KEY }}&libraries=places&callback=initMap"
+    async
+    defer
+  ></script>
+{% endcomment %}
+{% comment %}
+  App proxy endpoint for Google Maps API loader
+  Note: Cannot use asset_url filter here as this is a dynamic app proxy endpoint, not a static asset.
+  The linter warning is expected and can be ignored for this use case.
+{% endcomment %}
 <script
-  src="https://maps.googleapis.com/maps/api/js?key={{ block.settings.GOOGLE_PUBLIC_API_KEY }}&libraries=places&callback=initMap"
+  src="/apps/storetrail/maps-loader"
   async
   defer
 ></script>
