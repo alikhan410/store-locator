@@ -338,23 +338,14 @@ export default function Index() {
                           <s-grid gridTemplateColumns="1fr auto" gap="base" alignItems="center">
                             <s-grid gap="small-200">
                               <s-paragraph>
-                                Start by adding your first store location. Include the full address, phone number, and any other relevant details.
+                                Add your first store location with complete address details. The app will automatically geocode the address to get coordinates for the map.
                               </s-paragraph>
-                              <s-stack direction="inline" gap="small-200">
-                                <s-button 
-                                  variant="primary"
-                                  onClick={() => navigate("/app/add-store")}
-                                >
-                                  Add Store
-                                </s-button>
-                                <s-button 
-                                  variant="tertiary" 
-                                  tone="neutral"
-                                  onClick={() => navigate("/app/view-stores")}
-                                >
-                                  Import Multiple
-                                </s-button>
-                              </s-stack>
+                              <s-button 
+                                variant="primary"
+                                onClick={() => navigate("/app/add-store")}
+                              >
+                                Add Store
+                              </s-button>
                             </s-grid>
                           </s-grid>
                         </s-box>
@@ -364,11 +355,11 @@ export default function Index() {
                   
                   <s-divider />
                   
-                  {/* Step 2: Configure Google Maps API Key */}
+                  {/* Step 2: Import Stores */}
                   <s-box>
                     <s-grid gridTemplateColumns="1fr auto" gap="base" padding="small" alignItems="center">
                       <s-checkbox 
-                        label="Configure Google Maps API key"
+                        label="Import stores"
                         checked={setupCompleted.step2}
                         onInput={(e) => handleStepComplete('step2')}
                       />
@@ -384,19 +375,19 @@ export default function Index() {
                         <s-box padding="base" background="subdued" borderRadius="base">
                           <s-grid gap="small-200">
                             <s-paragraph>
-                              Get a Google Maps API key to enable map functionality on your storefront. You'll need:
+                              Import multiple stores at once using a CSV file. This is the fastest way to add all your store locations.
                             </s-paragraph>
                             <s-stack direction="block" gap="small-100">
-                              <s-text>1. Go to <s-link href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</s-link></s-text>
-                              <s-text>2. Enable "Maps JavaScript API" and "Geocoding API"</s-text>
-                              <s-text>3. Create an API key</s-text>
-                              <s-text>4. Add the key to your theme's Store Locator block settings</s-text>
+                              <s-text>1. Go to "View All Stores" page</s-text>
+                              <s-text>2. Click "Import Stores" button</s-text>
+                              <s-text>3. Upload your CSV file with store data</s-text>
+                              <s-text>4. Review and confirm the import</s-text>
                             </s-stack>
                             <s-button 
-                              variant="secondary"
-                              onClick={() => window.open("https://console.cloud.google.com/apis/credentials", "_blank")}
+                              variant="primary"
+                              onClick={() => navigate("/app/view-stores")}
                             >
-                              Get API Key
+                              Import Stores
                             </s-button>
                           </s-grid>
                         </s-box>
