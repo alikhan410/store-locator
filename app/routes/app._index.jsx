@@ -756,81 +756,83 @@ export default function Index() {
             )}
 
             {/* Recent Activity and Store Overview */}
-            <s-grid gridTemplateColumns="2fr 1fr" gap="base">
-            {/* Recent Activity */}
-              <s-section>
-                <s-grid gridTemplateColumns="1fr auto" alignItems="center" paddingBlockEnd="small-400">
-                  <s-heading>Recent Activity</s-heading>
-                  <s-link href="/app/view-stores">View all stores</s-link>
-                </s-grid>
-                    {stores.length > 0 ? (
-                  <s-stack direction="block" gap="small-300">
-                    {stores.slice(0, 5).map((store) => (
-                      <s-box 
-                            key={store.id}
-                        padding="small-300" 
-                        borderRadius="base"
-                        style={{ 
-                          borderBottom: "1px solid var(--p-color-border-subdued)"
-                        }}
-                      >
-                        <s-grid gridTemplateColumns="1fr auto" gap="small-500" alignItems="start">
-                          <s-stack direction="block" gap="small-500">
-                            <s-text fontWeight="medium">{store.name}</s-text>
+            <s-query-container>
+              <s-grid gridTemplateColumns="@container (inline-size > 768px) '2fr 1fr', 1fr" gap="base">
+              {/* Recent Activity */}
+                <s-section>
+                  <s-grid gridTemplateColumns="1fr auto" alignItems="center" paddingBlockEnd="small-400">
+                    <s-heading>Recent Activity</s-heading>
+                    <s-link href="/app/view-stores">View all stores</s-link>
+                  </s-grid>
+                      {stores.length > 0 ? (
+                    <s-stack direction="block" gap="small-300">
+                      {stores.slice(0, 5).map((store) => (
+                        <s-box 
+                              key={store.id}
+                          padding="small-300" 
+                          borderRadius="base"
+                          style={{ 
+                            borderBottom: "1px solid var(--p-color-border-subdued)"
+                          }}
+                        >
+                          <s-grid gridTemplateColumns="1fr auto" gap="small-500" alignItems="start">
+                            <s-stack direction="block" gap="small-500">
+                              <s-text fontWeight="medium">{store.name}</s-text>
+                              <s-text color="subdued">
+                                    {store.address}, {store.city}, {store.state}
+                              </s-text>
+                            </s-stack>
                             <s-text color="subdued">
-                                  {store.address}, {store.city}, {store.state}
+                                  {formatDate(store.createdAt)}
                             </s-text>
-                          </s-stack>
-                          <s-text color="subdued">
-                                {formatDate(store.createdAt)}
-                          </s-text>
-                        </s-grid>
-                      </s-box>
-                    ))}
-                  </s-stack>
-                ) : (
-                  <s-paragraph color="subdued">No recent activity</s-paragraph>
-                )}
-              </s-section>
-
-              {/* Store Overview Sidebar */}
-              <s-section>
-                <s-stack direction="block" gap="base">
-                  <s-heading>Store Overview</s-heading>
-                  <s-box 
-                    padding="base" 
-                    background="subdued" 
-                    borderRadius="base"
-                    border="base"
-                  >
-                    <s-stack direction="block" gap="small-200">
-                      <s-stack direction="inline" justifyContent="space-between" alignItems="center">
-                        <s-text>Total Stores</s-text>
-                        <s-badge tone="info">{metrics.totalStores}</s-badge>
-                      </s-stack>
-                      <s-stack direction="inline" justifyContent="space-between" alignItems="center">
-                        <s-text>With Phone</s-text>
-                        <s-badge tone="info">{metrics.storesWithPhone}</s-badge>
-                      </s-stack>
-                      <s-stack direction="inline" justifyContent="space-between" alignItems="center">
-                        <s-text>With Website</s-text>
-                        <s-badge tone="info">{metrics.storesWithLink}</s-badge>
-                      </s-stack>
-                      <s-stack direction="inline" justifyContent="space-between" alignItems="center">
-                        <s-text>States Covered</s-text>
-                        <s-badge tone="success">{metrics.uniqueStatesCount}</s-badge>
-                      </s-stack>
+                          </s-grid>
+                        </s-box>
+                      ))}
                     </s-stack>
-                  </s-box>
-                  <s-button 
-                    inlineSize="fill-available"
-                      onClick={() => navigate("/app/view-stores")}
+                  ) : (
+                    <s-paragraph color="subdued">No recent activity</s-paragraph>
+                  )}
+                </s-section>
+
+                {/* Store Overview Sidebar */}
+                <s-section>
+                  <s-stack direction="block" gap="base">
+                    <s-heading>Store Overview</s-heading>
+                    <s-box 
+                      padding="base" 
+                      background="subdued" 
+                      borderRadius="base"
+                      border="base"
                     >
-                      View All Stores
-                  </s-button>
-                </s-stack>
-              </s-section>
-            </s-grid>
+                      <s-stack direction="block" gap="small-200">
+                        <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+                          <s-text>Total Stores</s-text>
+                          <s-badge tone="info">{metrics.totalStores}</s-badge>
+                        </s-stack>
+                        <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+                          <s-text>With Phone</s-text>
+                          <s-badge tone="info">{metrics.storesWithPhone}</s-badge>
+                        </s-stack>
+                        <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+                          <s-text>With Website</s-text>
+                          <s-badge tone="info">{metrics.storesWithLink}</s-badge>
+                        </s-stack>
+                        <s-stack direction="inline" justifyContent="space-between" alignItems="center">
+                          <s-text>States Covered</s-text>
+                          <s-badge tone="success">{metrics.uniqueStatesCount}</s-badge>
+                        </s-stack>
+                      </s-stack>
+                    </s-box>
+                    <s-button 
+                      inlineSize="fill-available"
+                        onClick={() => navigate("/app/view-stores")}
+                      >
+                        View All Stores
+                    </s-button>
+                  </s-stack>
+                </s-section>
+              </s-grid>
+            </s-query-container>
           </>
         )}
       </s-stack>
