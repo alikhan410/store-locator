@@ -757,7 +757,7 @@ export default function Index() {
 
             {/* Recent Activity and Store Overview */}
             <s-query-container>
-              <s-grid gridTemplateColumns="@container (inline-size > 768px) '2fr 1fr', 1fr" gap="base">
+              <s-grid gridTemplateColumns="@container (inline-size <= 768px) 1fr, 2fr 1fr" gap="base">
               {/* Recent Activity */}
                 <s-section>
                   <s-grid gridTemplateColumns="1fr auto" alignItems="center" paddingBlockEnd="small-400">
