@@ -147,8 +147,8 @@ export default function SupportPage() {
       <ui-title-bar title="Support" />
       
       <s-stack direction="block" gap="large-200" paddingBlockStart="large" paddingBlockEnd="large" paddingInlineStart="base" paddingInlineEnd="base">
-        {/* Self-Help Resources Section */}
-        <s-section heading="Self-Help Resources">
+        {/* Self-Help Resources Section - Hidden */}
+        {/* <s-section heading="Self-Help Resources">
           <s-box padding="base" background="base" border="base" borderRadius="base">
             <s-grid gap="base">
               <s-paragraph color="subdued">
@@ -188,7 +188,7 @@ export default function SupportPage() {
               </s-grid>
             </s-grid>
           </s-box>
-        </s-section>
+        </s-section> */}
 
         {/* Support Request Form Section */}
         <s-section heading="Submit Support Request">
@@ -263,8 +263,8 @@ export default function SupportPage() {
           </s-box>
         </s-section>
 
-        {/* Legal & Privacy Section */}
-        <s-section heading="Legal & Privacy">
+        {/* Legal & Privacy Section - Hidden */}
+        {/* <s-section heading="Legal & Privacy">
           <s-box padding="base" background="base" border="base" borderRadius="base">
             <s-grid gap="base">
               <s-paragraph color="subdued">
@@ -304,7 +304,7 @@ export default function SupportPage() {
               </s-stack>
             </s-grid>
           </s-box>
-        </s-section>
+        </s-section> */}
 
         {/* Footer Help */}
         <s-stack alignItems="center" paddingBlockStart="base">
