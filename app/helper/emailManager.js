@@ -17,8 +17,7 @@ function ensureConfigured() {
  * Get support email from environment (with fallback)
  */
 function getSupportEmail() {
-  // return process.env.SUPPORT_EMAIL || 'help@storetrail.app';
-  return "mczeyo@gmail.com";
+  return process.env.SUPPORT_EMAIL || 'help@storetrail.app';
 }
 
 /**
