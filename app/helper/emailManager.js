@@ -117,7 +117,7 @@ Reply to this email to respond to the merchant.
     subject: `Support Request - ${issueType} - ${shop}`,
     html,
     text,
-    replyTo: `${shop}@storetrail.app`,
+    replyTo: 'noreply@example.com', // Testing: changed from ${shop}@storetrail.app
   });
 }
 
