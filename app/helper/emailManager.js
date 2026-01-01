@@ -53,6 +53,7 @@ async function sendEmail({ to, subject, html, text, replyTo }) {
     console.log('[SendGrid] Email sent successfully:', {
       to,
       subject,
+      replyTo,
       statusCode: response.statusCode,
     });
     return { success: true, statusCode: response.statusCode };
@@ -60,6 +61,7 @@ async function sendEmail({ to, subject, html, text, replyTo }) {
     console.error('[SendGrid] Failed to send email:', {
       to,
       subject,
+      replyTo,
       error: error.message,
       response: error.response?.body,
     });
