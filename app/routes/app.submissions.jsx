@@ -112,6 +112,29 @@ export const action = async ({ request }) => {
         };
       }
 
+      // Geocode address if lat/lng not provided
+      let lat = submission.lat;
+      let lng = submission.lng;
+      
+      if (!lat || !lng) {
+        const { generateCoords } = await import("../helper/fetchCoords");
+        try {
+          const coords = await generateCoords(
+            submission.address,
+            submission.state,
+            submission.city,
+            submission.zip
+          );
+          if (coords?.latitude && coords?.longitude) {
+            lat = coords.latitude;
+            lng = coords.longitude;
+          }
+        } catch (geocodeError) {
+          console.error("Geocoding failed for submission:", geocodeError);
+          // Continue without coordinates
+        }
+      }
+
       // Create the store from the submission
       const newStore = await prisma.store.create({
         data: {
@@ -125,6 +148,8 @@ export const action = async ({ request }) => {
           zip: submission.zip,
           country: submission.country,
           phone: submission.contactPhone,
+          lat: lat || null,
+          lng: lng || null,
           notes: submission.notes,
         },
       });

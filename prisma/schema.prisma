@@ -61,6 +61,8 @@ model StoreSubmission {
   zip           String
   country       String   @default("United States")
   website       String?
+  lat           Float?
+  lng           Float?
   status        String   @default("PENDING") // PENDING, APPROVED, REJECTED
   notes         String?
   adminNotes    String?  // Internal notes for admin review

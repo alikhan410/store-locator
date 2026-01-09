@@ -73,6 +73,8 @@ export const action = async ({ request }) => {
     country,
     website,
     notes,
+    lat,
+    lng,
   } = data;
 
   if (
@@ -110,6 +112,8 @@ export const action = async ({ request }) => {
         zip,
         country: country || "United States",
         website: website || null,
+        lat: lat ? parseFloat(lat) : null,
+        lng: lng ? parseFloat(lng) : null,
         notes: notes || null,
         shop,
         status: "PENDING",
