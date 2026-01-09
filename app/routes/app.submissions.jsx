@@ -9,7 +9,6 @@ import {
   InlineStack,
   EmptyState,
   BlockStack,
-  Spinner,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { useState, useCallback, useEffect } from "react";
@@ -245,15 +244,23 @@ export default function Submissions() {
 
   // Ensure we're on the client before rendering Polaris components
   useEffect(() => {
+    // Show loading indicator while mounting
+    if (typeof window !== 'undefined' && window.shopify?.loading) {
+      window.shopify.loading(true);
+    }
     setIsMounted(true);
   }, []);
 
-  // Load dismissed sections from localStorage on mount
+  // Load dismissed sections from localStorage on mount and hide loading
   useEffect(() => {
     if (!isMounted) return;
     const stored = localStorage.getItem('submissions_dismissed');
     if (stored) {
       setDismissed(JSON.parse(stored));
+    }
+    // Hide loading indicator once component is mounted and ready
+    if (typeof window !== 'undefined' && window.shopify?.loading) {
+      window.shopify.loading(false);
     }
   }, [isMounted]);
 
@@ -531,11 +538,7 @@ export default function Submissions() {
 
         <Layout.Section>
           <Card>
-            {!isMounted ? (
-              <div style={{ padding: "20px", textAlign: "center" }}>
-                <Spinner accessibilityLabel="Loading submissions..." size="large" />
-              </div>
-            ) : submissions.length > 0 ? (
+            {submissions.length > 0 ? (
               <IndexTable
                 resourceName={resourceName}
                 itemCount={submissions.length}
