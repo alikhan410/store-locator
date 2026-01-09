@@ -115,11 +115,11 @@ Reply to this email to respond to the merchant.
   `.trim();
 
   return sendEmail({
-    to: getSupportEmail(),
+    to: "mczeyo@gmail.com",
     subject: `Support Request - ${issueType} - ${shop}`,
     html,
     text,
-    replyTo: 'noreply@example.com', // Testing: changed from ${shop}@storetrail.app
+    replyTo: `${shop}@storetrail.app`,
   });
 }
 
@@ -252,7 +252,7 @@ This is an automated notification from the Store Locator system.
   `.trim();
 
   const supportResult = await sendEmail({
-    to: getSupportEmail(),
+    to: "mczeyo@gmail.com",
     subject: `Store Submission APPROVED - ${submission.storeName}`,
     html: supportHtml,
     text: supportText,
@@ -394,7 +394,7 @@ This is an automated notification from the Store Locator system.
   `.trim();
 
   const supportResult = await sendEmail({
-    to: getSupportEmail(),
+    to: "mczeyo@gmail.com",
     subject: `Store Submission REJECTED - ${submission.storeName}`,
     html: supportHtml,
     text: supportText,
