@@ -9,6 +9,7 @@ import {
   InlineStack,
   EmptyState,
   BlockStack,
+  Spinner,
 } from "@shopify/polaris";
 import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 import { useState, useCallback, useEffect } from "react";
@@ -234,6 +235,7 @@ export default function Submissions() {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [loading, setLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState(null); // 'approve' or 'reject'
+  const [isMounted, setIsMounted] = useState(false);
   const [dismissed, setDismissed] = useState({
     submissionFormBlock: false,
   });
@@ -241,13 +243,19 @@ export default function Submissions() {
     submissionFormBlock: false,
   });
 
+  // Ensure we're on the client before rendering Polaris components
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Load dismissed sections from localStorage on mount
   useEffect(() => {
+    if (!isMounted) return;
     const stored = localStorage.getItem('submissions_dismissed');
     if (stored) {
       setDismissed(JSON.parse(stored));
     }
-  }, []);
+  }, [isMounted]);
 
   // Save dismissed state to localStorage
   const handleDismiss = (section) => {
@@ -523,7 +531,11 @@ export default function Submissions() {
 
         <Layout.Section>
           <Card>
-            {submissions.length > 0 ? (
+            {!isMounted ? (
+              <div style={{ padding: "20px", textAlign: "center" }}>
+                <Spinner accessibilityLabel="Loading submissions..." size="large" />
+              </div>
+            ) : submissions.length > 0 ? (
               <IndexTable
                 resourceName={resourceName}
                 itemCount={submissions.length}
