@@ -422,7 +422,6 @@ export default function Index() {
                             <s-stack direction="block" gap="small-100">
                               <s-text>1. Go to Online Store → Themes → Customize</s-text>
                               <s-text>2. Add the "Store Locator" block to any page</s-text>
-                              <s-text>3. Configure your Google Maps API key in block settings</s-text>
                             </s-stack>
                           </s-grid>
                         </s-box>
