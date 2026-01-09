@@ -345,7 +345,8 @@ export default function Submissions() {
     plural: "submissions",
   };
 
-  const rowMarkup = submissions.map((submission, index) => (
+  // Only create rowMarkup when mounted to avoid SSR issues with IndexTable
+  const rowMarkup = isMounted ? submissions.map((submission, index) => (
     <IndexTable.Row
       id={submission.id}
       key={submission.id}
@@ -392,7 +393,7 @@ export default function Submissions() {
         )}
       </IndexTable.Cell>
     </IndexTable.Row>
-  ));
+  )) : [];
 
   return (
     <Page>
@@ -538,7 +539,7 @@ export default function Submissions() {
 
         <Layout.Section>
           <Card>
-            {submissions.length > 0 ? (
+            {!isMounted ? null : submissions.length > 0 ? (
               <IndexTable
                 resourceName={resourceName}
                 itemCount={submissions.length}
