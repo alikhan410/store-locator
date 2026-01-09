@@ -21,14 +21,6 @@ vi.mock('../../app/db.server', () => ({
   },
 }));
 
-vi.mock('../../app/helper/featureGating', () => ({
-  useFeatureGate: vi.fn(() => ({ isEnabled: true })),
-}));
-
-vi.mock('../../app/components/UpgradePrompt', () => ({
-  FeatureButton: ({ children, ...props }) => <button {...props}>{children}</button>,
-}));
-
 // Mock Shopify Polaris components
 vi.mock('@shopify/polaris', async () => {
   const actual = await vi.importActual('@shopify/polaris');

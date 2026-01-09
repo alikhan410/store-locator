@@ -142,16 +142,6 @@ export const action = async ({ request }) => {
     // Check subscription and plan limits
     const { appSubscriptions } = await billing.check();
     const subscription = appSubscriptions?.[0];
-    
-    // Check if CSV import is enabled for this subscription
-    const { isFeatureEnabledForSubscription } = await import("../helper/featureGating");
-    
-    if (!isFeatureEnabledForSubscription('csv_import', subscription)) {
-      return { 
-        success: false,
-        error: "CSV import is not available on your current plan. Please upgrade to Basic plan or higher." 
-      };
-    }
 
     // Count current stores
     const currentStoreCount = await prisma.store.count({

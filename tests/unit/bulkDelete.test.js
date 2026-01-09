@@ -28,10 +28,6 @@ vi.mock('../../app/db.server', () => ({
   },
 }));
 
-vi.mock('../../app/helper/featureGating', () => ({
-  useFeatureGate: vi.fn(() => ({ isEnabled: true })),
-}));
-
 vi.mock('@shopify/polaris', async () => {
   const actual = await vi.importActual('@shopify/polaris');
   return {

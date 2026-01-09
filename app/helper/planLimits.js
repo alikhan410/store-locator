@@ -10,16 +10,25 @@ const getPlanLimit = (defaultLimit, envKey) => {
   return envValue ? parseInt(envValue, 10) : defaultLimit;
 };
 
+/**
+ * Plan Limits Configuration
+ * Note: All plans now have the same features.
+ * Plans differ only by store limits:
+ * - FREE: 10 stores
+ * - BASIC: 500 stores
+ * - PRO: Unlimited stores (-1)
+ * - PARTNER: Unlimited stores (-1)
+ */
 export const PLAN_LIMITS = {
   FREE: {
     name: 'free',
     storeLimit: getPlanLimit(10, 'FREE_PLAN_STORE_LIMIT'),
-    features: ['basic_store_management', 'google_maps_integration']
+    features: ['basic_store_management', 'google_maps_integration', 'csv_import', 'csv_export', 'advanced_search', 'white_label', 'custom_css', 'bulk_operations', 'dealer_submission_form', 'choropleth']
   },
   BASIC: {
     name: 'basic', 
     storeLimit: getPlanLimit(500, 'BASIC_PLAN_STORE_LIMIT'),
-    features: ['basic_store_management', 'google_maps_integration', 'csv_import', 'csv_export', 'advanced_search', 'white_label', 'custom_css', 'bulk_operations', 'dealer_submission_form']
+    features: ['basic_store_management', 'google_maps_integration', 'csv_import', 'csv_export', 'advanced_search', 'white_label', 'custom_css', 'bulk_operations', 'dealer_submission_form', 'choropleth']
   },
   PRO: {
     name: 'pro',
