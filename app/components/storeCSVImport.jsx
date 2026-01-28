@@ -297,16 +297,41 @@ export default function StoreCSVImport({ onImport, onClose }) {
 
             if (data.errors && data.errors.length > 0) {
               // Process failed rows for the error report
-              const failed = data.errors.map((error) => {
-                const originalRow = mappedStores[error.row - 1];
-                return {
-                  row: error.row,
-                  originalData: originalRow.originalData,
-                  mappedData: originalRow,
-                  errors: error.errors,
-                  fixed: false,
-                };
+              const failed = [];
+              const nonRowErrors = [];
+
+              data.errors.forEach((error) => {
+                // Errors tied to a specific CSV row (1-based index)
+                if (typeof error.row === "number") {
+                  const originalRow = mappedStores[error.row - 1];
+                  if (!originalRow) {
+                    nonRowErrors.push(
+                      `Import error on row ${error.row}: ${error.errors.join(
+                        ", ",
+                      )}`,
+                    );
+                    return;
+                  }
+                  failed.push({
+                    row: error.row,
+                    originalData: originalRow.originalData,
+                    mappedData: originalRow,
+                    errors: error.errors,
+                    fixed: false,
+                  });
+                } else {
+                  // Summary / non-row-specific errors (e.g., plan limit)
+                  nonRowErrors.push(error.errors.join(", "));
+                }
               });
+
+              if (nonRowErrors.length > 0) {
+                setErrors((prev) => [
+                  ...(prev || []),
+                  ...nonRowErrors,
+                ]);
+              }
+
               setFailedRows(failed);
               setShowErrorReport(true);
             } else {

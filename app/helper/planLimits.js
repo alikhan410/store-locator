@@ -107,25 +107,55 @@ export const checkStoreLimit = (subscription, currentStoreCount) => {
  * @returns {Object} Result with allowedImport, skipped, and error message
  */
 export const validateImportSize = (subscription, currentStoreCount, importSize) => {
-  const limitCheck = checkStoreLimit(subscription, currentStoreCount);
-  
-  if (!limitCheck.canAdd) {
+  const MAX_PER_IMPORT = 500;
+
+  // Determine the active plan (or free if no active subscription)
+  let plan;
+  if (!subscription || subscription.status !== 'ACTIVE') {
+    plan = PLAN_LIMITS.FREE;
+  } else {
+    plan = getPlanLimits(subscription.name);
+  }
+
+  // Unlimited plans (e.g., PRO, PARTNER): only enforce per-import cap
+  if (plan.storeLimit === -1) {
+    const allowedImport = Math.min(importSize, MAX_PER_IMPORT);
+    const skipped = importSize - allowedImport;
+
     return {
-      allowedImport: 0,
-      skipped: importSize,
-      error: limitCheck.error
+      allowedImport,
+      skipped,
+      limit: 'Unlimited',
+      error:
+        skipped > 0
+          ? `${skipped} store(s) skipped due to per-import limit of ${MAX_PER_IMPORT}`
+          : null,
     };
   }
 
-  const allowedImport = Math.min(importSize, limitCheck.remaining);
+  // Finite plans: enforce both overall plan limit and per-import cap
+  const remainingCapacity = Math.max(plan.storeLimit - currentStoreCount, 0);
+
+  if (remainingCapacity <= 0) {
+    return {
+      allowedImport: 0,
+      skipped: importSize,
+      limit: plan.storeLimit,
+      error: `You've reached the limit of ${plan.storeLimit} stores for your current plan.`,
+    };
+  }
+
+  const allowedImport = Math.min(importSize, remainingCapacity, MAX_PER_IMPORT);
   const skipped = importSize - allowedImport;
 
   return {
     allowedImport,
     skipped,
-    error: skipped > 0 
-      ? `${skipped} store(s) skipped due to plan limit of ${limitCheck.limit}`
-      : null
+    limit: plan.storeLimit,
+    error:
+      skipped > 0
+        ? `${skipped} store(s) skipped due to plan limit of ${plan.storeLimit}`
+        : null,
   };
 };
 
