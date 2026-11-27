@@ -1,4 +1,8 @@
+import { authenticate } from "../shopify.server";
+
 export const loader = async ({ request }) => {
+  // Verifies the Shopify app proxy signature. Throws a Response on failure.
+  await authenticate.public.appProxy(request);
   const url = new URL(request.url);
   const address = url.searchParams.get("address");
 

@@ -26,6 +26,8 @@ import {
 } from "@remix-run/react";
 import { cleanupGoogleMapsInstances } from "../helper/googleMapsLoader";
 import { loadGoogleMaps } from "../helper/loadGoogleMaps";
+import { authenticate } from "../shopify.server";
+import { updateShopStore } from "../helper/updateShopStore";
 
 // Add Google Maps script to head
 export const links = () => [
@@ -40,12 +42,13 @@ const formatPhone = (value) => {
   return phone ? phone.formatNational() : value;
 };
 
-export const loader = async ({ params }) => {
+export const loader = async ({ request, params }) => {
+  const { session } = await authenticate.admin(request);
   const prisma = (await import("../db.server")).default;
   const { storeId } = params;
 
-  const store = await prisma.store.findUnique({
-    where: { id: storeId },
+  const store = await prisma.store.findFirst({
+    where: { id: storeId, shop: session.shop },
   });
 
   if (!store) {
@@ -59,8 +62,10 @@ export const loader = async ({ params }) => {
 };
 
 export const action = async ({ request, params }) => {
+  const { session } = await authenticate.admin(request);
   const prisma = (await import("../db.server")).default;
   const { storeId } = params;
+
   const formData = await request.formData();
   const data = Object.fromEntries(formData);
 
@@ -82,22 +87,22 @@ export const action = async ({ request, params }) => {
   //   longitude = coords.longitude;
   // }
 
-  const updatedStore = await prisma.store.update({
-    where: { id: storeId },
-    data: {
-      name: data.name,
-      link: data.link || null,
-      address: data.address,
-      address2: data.address2,
-      city: data.city,
-      state: data.state,
-      zip: data.zip,
-      lat: latitude ? parseFloat(latitude) : null,
-      lng: longitude ? parseFloat(longitude) : null,
-      notes: data.notes,
-      phone: data.phone || null,
-    },
+  const updatedStore = await updateShopStore(prisma, session.shop, storeId, {
+    name: data.name,
+    link: data.link || null,
+    address: data.address,
+    address2: data.address2,
+    city: data.city,
+    state: data.state,
+    zip: data.zip,
+    lat: latitude ? parseFloat(latitude) : null,
+    lng: longitude ? parseFloat(longitude) : null,
+    notes: data.notes,
+    phone: data.phone || null,
   });
+  if (!updatedStore) {
+    throw new Response("Store not found", { status: 404 });
+  }
 
   return { success: true, store: updatedStore };
 };

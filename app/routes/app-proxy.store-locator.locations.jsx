@@ -1,22 +1,19 @@
 import prisma from "../db.server";
 import { getBoundingBox, haversineDistance } from "../helper/geoUtils";
+import { verifiedProxyShop } from "../helper/proxyShop";
+import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
   console.log("proxy is running");
+  const { shop, error } = await verifiedProxyShop(request, authenticate.public.appProxy);
+  if (error) return error;
   try {
     const url = new URL(request.url);
     const lat = parseFloat(url.searchParams.get("lat") || "0");
     const lng = parseFloat(url.searchParams.get("lng") || "0");
     const radiusKm = parseFloat(url.searchParams.get("radius") || "50");
-    const shop = url.searchParams.get("shop");
     console.log("shop is: ", shop);
     console.log("radius is: ", radiusKm, " km");
-    
-    // If no shop parameter, return error
-    if (!shop) {
-      console.error("No shop parameter provided");
-      return new Response("Shop parameter required", { status: 400 });
-    }
     
     // Validate coordinates
     if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) {
