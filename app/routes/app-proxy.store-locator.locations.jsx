@@ -1,8 +1,11 @@
 import prisma from "../db.server";
 import { getBoundingBox, haversineDistance } from "../helper/geoUtils";
+import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
   console.log("proxy is running");
+  // Verifies the Shopify app proxy signature, so `shop` below is trusted. Throws a Response on failure.
+  await authenticate.public.appProxy(request);
   try {
     const url = new URL(request.url);
     const lat = parseFloat(url.searchParams.get("lat") || "0");

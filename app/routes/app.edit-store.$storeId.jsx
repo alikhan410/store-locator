@@ -26,6 +26,7 @@ import {
 } from "@remix-run/react";
 import { cleanupGoogleMapsInstances } from "../helper/googleMapsLoader";
 import { loadGoogleMaps } from "../helper/loadGoogleMaps";
+import { authenticate } from "../shopify.server";
 
 // Add Google Maps script to head
 export const links = () => [
@@ -40,12 +41,13 @@ const formatPhone = (value) => {
   return phone ? phone.formatNational() : value;
 };
 
-export const loader = async ({ params }) => {
+export const loader = async ({ request, params }) => {
+  const { session } = await authenticate.admin(request);
   const prisma = (await import("../db.server")).default;
   const { storeId } = params;
 
-  const store = await prisma.store.findUnique({
-    where: { id: storeId },
+  const store = await prisma.store.findFirst({
+    where: { id: storeId, shop: session.shop },
   });
 
   if (!store) {
@@ -59,8 +61,17 @@ export const loader = async ({ params }) => {
 };
 
 export const action = async ({ request, params }) => {
+  const { session } = await authenticate.admin(request);
   const prisma = (await import("../db.server")).default;
   const { storeId } = params;
+
+  const existing = await prisma.store.findFirst({
+    where: { id: storeId, shop: session.shop },
+    select: { id: true },
+  });
+  if (!existing) {
+    throw new Response("Store not found", { status: 404 });
+  }
   const formData = await request.formData();
   const data = Object.fromEntries(formData);
 
